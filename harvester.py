@@ -345,16 +345,29 @@ class MainFrame(wx.Frame):
         '''
         Create a nifty looking About dialog box.
         '''
+        licence_text = '''
+The Trove Newspaper Harvester is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+The Trove Newspaper Harvester is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with the TroveNewspapers package. If not, see <http://www.gnu.org/licenses/>.
+'''
         description = 'A research tool to harvest newspaper data from Trove.'
-        licence = 'Licence info'
         info = wx.AboutDialogInfo()
         info.SetIcon(wx.Icon('icons/news.png', wx.BITMAP_TYPE_PNG))
         info.SetName('Trove Newspaper Harvester')
-        info.SetVersion('1.0')
+        info.SetVersion('0.9')
         info.SetDescription(description)
         info.SetWebSite('http://www.wraggelabs.com/emporium')
-        info.SetLicence(licence)
-        info.AddDeveloper('Tim Sherratt')
+        info.SetLicence(licence_text)
+        info.AddDeveloper('Tim Sherratt (tim@discontents.com.au)')
         wx.AboutBox(info)
         
     def OnExit(self, event):
