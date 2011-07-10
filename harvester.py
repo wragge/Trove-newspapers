@@ -21,6 +21,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with the TroveNewspapers package. If not, see <http://www.gnu.org/licenses/>.
 '''
+
+from __future__ import with_statement
 import wx, threading, Queue, sys, re, string, datetime, os
 from wx.lib.newevent import NewEvent
 import ConfigParser
