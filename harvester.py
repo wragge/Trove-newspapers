@@ -25,6 +25,7 @@ along with the TroveNewspapers package. If not, see <http://www.gnu.org/licenses
 from __future__ import with_statement
 import wx, threading, Queue, sys, re, string, datetime, os
 from wx.lib.newevent import NewEvent
+import wx.html as html
 import ConfigParser
 
 import harvest
@@ -173,24 +174,31 @@ class MainFrame(wx.Frame):
         Create the GUI.
         '''
         wx.Frame.__init__(self, parent, id, title, size=(600, 550))
+        icon = wx.Icon('icons/small-news.png', wx.BITMAP_TYPE_PNG, 16, 16)
+        wx.Frame.SetIcon(self, icon)
         self.requestQ = Queue.Queue() #create queues
         self.resultQ = Queue.Queue()
         # Add menu
         menubar = wx.MenuBar()
         filemenu = wx.Menu()
         # File menu - Open and Exit
-        menuOpen = filemenu.Append(-1, "&Open"," Open an existing project")
-        menuExit = filemenu.Append(wx.ID_EXIT,"E&xit"," Terminate the program")
+        menuOpen = wx.MenuItem(filemenu, wx.ID_OPEN, "&Open\tCtrl+O"," Open an existing project")
+        #menuOpen.SetBitmap(wx.Bitmap('icons/document-open.png'))
+        menuExit = wx.MenuItem(filemenu, wx.ID_EXIT,"E&xit\tCtrl+X"," Terminate the program")
+        filemenu.AppendItem(menuOpen)
+        filemenu.AppendItem(menuExit)
         menubar.Append(filemenu, '&File')
         # Help menu
         helpmenu = wx.Menu()
         menuAbout = helpmenu.Append(wx.ID_ABOUT, '&About', " Information about this program")
+        menuHelp = helpmenu.Append(wx.ID_HELP, '&Help')
         menubar.Append(helpmenu, '&Help')
         
         self.SetMenuBar(menubar)
         self.Bind(wx.EVT_MENU, self.OnOpen, menuOpen)
         self.Bind(wx.EVT_MENU, self.OnAbout, menuAbout)
         self.Bind(wx.EVT_MENU, self.OnExit, menuExit)
+        self.Bind(wx.EVT_MENU, self.OnHelp, menuHelp)
         #Add the various widgets
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -264,8 +272,8 @@ class MainFrame(wx.Frame):
         hbox9 = wx.BoxSizer(wx.HORIZONTAL)
         self.output_window = wx.TextCtrl(panel, -1, style=wx.TE_AUTO_SCROLL|wx.TE_MULTILINE|wx.TE_READONLY)
         hbox9.Add(self.output_window, proportion=1, flag=wx.EXPAND)
-        vbox4.Add(hbox9, proportion=1, flag=wx.ALL|wx.EXPAND, border=10)
         vbox.Add(vbox4, flag=wx.EXPAND|wx.ALL, border=10)
+        vbox4.Add(hbox9, proportion=1, flag=wx.ALL|wx.EXPAND, border=10)
         # Extra space
         vbox.Add((-1, 10))
         # Add all the widgets to the panel
@@ -370,10 +378,30 @@ along with the TroveNewspapers package. If not, see <http://www.gnu.org/licenses
         info.AddDeveloper('Tim Sherratt (tim@discontents.com.au)')
         wx.AboutBox(info)
         
+    def OnHelp(self, event):
+        dlg = HelpWindow(None)
+        dlg.Show()
+
     def OnExit(self, event):
         '''
         Close the Harvester.
         '''
+        self.Close(True)
+
+class HelpWindow(wx.Frame):
+ 
+    def __init__(self, parent):
+        wx.Frame.__init__(self, parent, wx.ID_ANY, title="Trove Newspaper Harvester -- Help", size=(400,400))
+        icon = wx.Icon('icons/small-news.png', wx.BITMAP_TYPE_PNG, 16, 16)
+        wx.Frame.SetIcon(self, icon)
+        toolbar = self.CreateToolBar()
+        toolbar.AddLabelTool(1, 'Exit', wx.Bitmap('icons/system-log-out.png'))
+        toolbar.Realize()
+        htmlWin = html.HtmlWindow(self, -1)
+        htmlWin.LoadPage('html/help.html')
+        self.Bind(wx.EVT_TOOL, self.OnClose, id=1)
+        
+    def OnClose(self, event):
         self.Close(True)
 
 class Worker(threading.Thread):
