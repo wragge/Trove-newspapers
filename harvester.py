@@ -29,6 +29,7 @@ import wx.html as html
 import ConfigParser
 
 import harvest
+import icons
 
 ID_BEGIN = 100
 wxStdOut, EVT_STDDOUT = NewEvent()
@@ -179,8 +180,8 @@ class MainFrame(wx.Frame):
         Create the GUI.
         '''
         wx.Frame.__init__(self, parent, id, title, size=(600, 550))
-        icon = wx.Icon('icons/small-news.png', wx.BITMAP_TYPE_PNG, 16, 16)
-        wx.Frame.SetIcon(self, icon)
+        #icon = wx.Icon('icons/small-news.png', wx.BITMAP_TYPE_PNG, 16, 16)
+        wx.Frame.SetIcon(self, icons.getNewsSmallIcon())
         self.requestQ = Queue.Queue() #create queues
         self.resultQ = Queue.Queue()
         # Add menu
@@ -374,7 +375,7 @@ along with the TroveNewspapers package. If not, see <http://www.gnu.org/licenses
 '''
         description = 'A research tool to harvest newspaper data from Trove.'
         info = wx.AboutDialogInfo()
-        info.SetIcon(wx.Icon('icons/news.png', wx.BITMAP_TYPE_PNG))
+        info.SetIcon(icons.getNewsIcon())
         info.SetName('Trove Newspaper Harvester')
         info.SetVersion('0.9')
         info.SetDescription(description)
@@ -397,10 +398,10 @@ class HelpWindow(wx.Frame):
  
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, wx.ID_ANY, title="Trove Newspaper Harvester -- Help", size=(400,400))
-        icon = wx.Icon('icons/small-news.png', wx.BITMAP_TYPE_PNG, 16, 16)
-        wx.Frame.SetIcon(self, icon)
+        wx.Frame.SetIcon(self, icons.getNewsSmallIcon())
         toolbar = self.CreateToolBar()
-        toolbar.AddLabelTool(1, 'Exit', wx.Bitmap('icons/system-log-out.png'))
+        #toolbar.AddLabelTool(1, 'Exit', wx.Bitmap('icons/system-log-out.png'))
+        toolbar.AddLabelTool(1, 'Exit', icons.getExitBitmap())
         toolbar.Realize()
         htmlWin = html.HtmlWindow(self, -1)
         htmlWin.LoadPage('html/help.html')
