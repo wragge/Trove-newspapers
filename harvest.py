@@ -87,17 +87,20 @@ class TroveNewspapersHarvester:
                                                    'newspaper_id', 'issue_date', 'page', 
                                                    'page_url','corrections','ftext'], 
                                                    dialect=csv.excel)
+        print 'File created: %s' % filename
         # the path.exists check is necessary for Python 2.5
         if text: 
             if os.path.exists('%s_text.zip' % self.path):
                 self.text_zip_file = ZipFile('%s_text.zip' % self.path, 'a')
             else:
                 self.text_zip_file = ZipFile('%s_text.zip' % self.path, 'w')
+            print 'File created: %s_text.zip' % self.path
         if pdf:
             if os.path.exists('%s_pdf.zip' % self.path):
                 self.pdf_zip_file = ZipFile('%s_pdf.zip' % self.path, 'a')
             else:
                 self.pdf_zip_file = ZipFile('%s_pdf.zip' % self.path, 'w')
+            print 'File created: %s_pdf.zip' % self.path
 
     def harvest(self, query, filename=None, start=0, text=None, pdf=None, zip_dir='title', gui=None):
         '''
@@ -118,6 +121,7 @@ class TroveNewspapersHarvester:
         except Exception, error:
             return self.harvest_failure(error)
         else:
+            print 'Harvesting...'
             # Calculate number of pages
             total = int(string.replace(news.total_results, ',', ''))
             self.total = total
