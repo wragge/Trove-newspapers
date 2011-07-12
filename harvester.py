@@ -30,6 +30,7 @@ import ConfigParser
 
 import harvest
 import icons
+import help
 
 ID_BEGIN = 100
 wxStdOut, EVT_STDDOUT = NewEvent()
@@ -232,7 +233,7 @@ class MainFrame(wx.Frame):
         hbox3.Add(label_3, flag=wx.RIGHT, border=8)
         self.url = wx.TextCtrl(panel, -1, validator = TextObjectValidator('url'))
         hbox3.Add(self.url, proportion=1)
-        vbox2.Add(hbox3, flag=wx.EXPAND|wx.ALL, border=10)
+        vbox2.Add(hbox3, proportion=1, flag=wx.EXPAND|wx.ALL, border=10)
         # Add the project details box
         vbox.Add(vbox2, flag=wx.EXPAND|wx.ALL, border=10)
         vbox.Add((-1, 10))
@@ -404,7 +405,7 @@ class HelpWindow(wx.Frame):
         toolbar.AddLabelTool(1, 'Exit', icons.getExitBitmap())
         toolbar.Realize()
         htmlWin = html.HtmlWindow(self, -1)
-        htmlWin.LoadPage('html/help.html')
+        htmlWin.SetPage(help.help_text)
         self.Bind(wx.EVT_TOOL, self.OnClose, id=1)
         
     def OnClose(self, event):
