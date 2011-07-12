@@ -64,36 +64,41 @@ def do_harvest(**kwargs):
     config.set('harvest', 'pdf', pdf)
     config.set('harvest', 'order_by', zip_dir)
     config.set('harvest', 'start', start)
-    with open(cfg_file, 'wb') as configfile:
+    with open(cfg_file, 'w') as configfile:
         config.write(configfile)
     # Write log entry
     status_message = '%s: Harvest commenced.\n' % datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    status_message += 'Project path: %s\n' % filename
     status_message += 'Query: %s\n' % query
-    status_message += 'Starting at record number:%s\n' % start
+    status_message += 'Starting at record number:%s' % start
     write_log_entry(log_file, status_message)
     # Create a harvest object and set it going
     harvester = harvest.TroveNewspapersHarvester()
     results = harvester.harvest(query, filename, start, text, pdf, zip_dir, gui=True)
     # If it's a successful harvest, display some details
     if not results['error'] or results['total'] == results['completed']:
-        status_message = '\n%s: Harvest completed - %s of %s articles processed.' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), results['completed'], results['total'])
+        status_message = '%s: Harvest completed - %s of %s articles processed.' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), results['completed'], results['total'])
         write_log_entry(log_file, status_message)
+        # Make sure start value is set back at 0
+        config.set('harvest', 'start', 0)
+        with open(cfg_file, 'w') as configfile:
+            config.write(configfile)
     # If it was unsuccessful
     else:
         if results['completed'] > 0:
             #Print error
-            status_message = '\n%s: Harvest interrupted - %s of %s articles processed.\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), results['completed'], results['total'])
+            status_message = '%s: Harvest interrupted - %s of %s articles processed.\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), results['completed'], results['total'])
             status_message += 'Error: %s\n' % results['error']
             write_log_entry(log_file, status_message)
             # Change the start value in config file and gui
             config.set('harvest', 'start', results['completed'])
-            with open(cfg_file, 'wb') as configfile:
+            with open(cfg_file, 'w') as configfile:
                 config.write(configfile)
             wx.GetApp().frame.start_at.SetValue(results['completed'])
             # Add extra message
             print '\nClick GO! to restart harvest.'
         else:
-            status_message = '\n%s: Harvest failed.\n' % datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            status_message = '%s: Harvest failed.\n' % datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
             status_message += 'Error: %s\n' % results['error']
             write_log_entry(log_file, status_message)
 
@@ -102,7 +107,7 @@ def write_log_entry(log_file, message):
     Write the supplied message both to standard output and to a log file.
     '''
     print message
-    with open(log_file, 'ab') as log:
+    with open(log_file, 'a') as log:
         log.write(message)
 
 class TextObjectValidator(wx.PyValidator):
