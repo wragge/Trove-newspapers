@@ -55,7 +55,7 @@ def do_harvest(**kwargs):
     text = kwargs['text']
     pdf = kwargs['pdf']
     zip_dir = kwargs['zip_dir']
-    start = '0'
+    start = kwargs['start']
     # Write the project config file.
     config = ConfigParser.RawConfigParser()
     config.add_section('harvest')
@@ -93,7 +93,7 @@ def do_harvest(**kwargs):
             status_message += 'Error: %s\n' % results['error']
             write_log_entry(log_file, status_message)
             # Change the start value in config file and gui
-            config.set('harvest', 'start', results['completed'])
+            config.set('harvest', 'start', results['completed'] - 1)
             with open(cfg_file, 'w') as configfile:
                 config.write(configfile)
             wx.GetApp().frame.start_at.SetValue(results['completed'])
@@ -279,7 +279,7 @@ class MainFrame(wx.Frame):
         hbox9 = wx.BoxSizer(wx.HORIZONTAL)
         self.output_window = wx.TextCtrl(panel, -1, style=wx.TE_AUTO_SCROLL|wx.TE_MULTILINE|wx.TE_READONLY)
         hbox9.Add(self.output_window, proportion=1, flag=wx.EXPAND)
-        vbox.Add(vbox4, flag=wx.EXPAND|wx.ALL, border=10)
+        vbox.Add(vbox4, proportion=1, flag=wx.EXPAND|wx.ALL, border=10)
         vbox4.Add(hbox9, proportion=1, flag=wx.ALL|wx.EXPAND, border=10)
         # Extra space
         vbox.Add((-1, 10))
@@ -317,6 +317,7 @@ class MainFrame(wx.Frame):
             params['text'] = self.save_text.GetValue()
             params['pdf'] = self.save_pdf.GetValue()
             params['zip_dir'] = self.order_by.GetValue()
+            params['start'] = self.start_at.GetValue()
             # Start the worker thread
             self.worker.begin(do_harvest, **params)
             # Start the timer for status updates
@@ -354,6 +355,7 @@ class MainFrame(wx.Frame):
             self.save_text.SetValue(config.getboolean('harvest', 'text'))
             self.save_pdf.SetValue(config.getboolean('harvest', 'pdf'))
             self.order_by.SetValue(config.get('harvest', 'order_by'))
+            self.start_at.SetValue(config.get('harvest', 'start'))
         dlg.Destroy()
         
     def OnAbout(self,e):
@@ -437,7 +439,7 @@ class Worker(threading.Thread):
 
 class SysOutListener:
     def write(self, string):
-        sys.__stdout__.write(string)
+        #sys.__stdout__.write(string)
         evt = wxStdOut(text=string)
         wx.PostEvent(wx.GetApp().frame.output_window, evt)
 
