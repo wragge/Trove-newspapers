@@ -115,7 +115,7 @@ class TroveNewspapersHarvester:
         if gui:
             self.gui = gui
         page_url = '%s&s=%s' % (self.query, self.completed)
-        news = scrape.TroveNewspapersClient()
+        news = scrape.TroveNewspapersClient(titles=False)
         try:   
             news.search(url=page_url)
         except Exception, error:
