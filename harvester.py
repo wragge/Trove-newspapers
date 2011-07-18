@@ -78,7 +78,7 @@ def do_harvest(**kwargs):
     harvester = harvest.TroveNewspapersHarvester()
     results = harvester.harvest(query, filename, start, text, pdf, zip_dir, gui=True)
     # If it's a successful harvest, display some details
-    if not results['error'] or results['total'] == results['completed']:
+    if not results['error'] and results['total'] == results['completed']:
         status_message = '%s: Harvest completed - %s of %s articles processed.' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), results['completed'], results['total'])
         write_log_entry(log_file, status_message)
         # Make sure start value is set back at 0
@@ -380,7 +380,7 @@ along with the TroveNewspapers package. If not, see <http://www.gnu.org/licenses
         info = wx.AboutDialogInfo()
         info.SetIcon(icons.getNewsIcon())
         info.SetName('Trove Newspaper Harvester')
-        info.SetVersion('0.9')
+        info.SetVersion('0.9.1')
         info.SetDescription(description)
         info.SetWebSite('http://www.wraggelabs.com/emporium')
         info.SetLicence(licence_text)
