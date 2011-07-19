@@ -47,6 +47,7 @@ from BeautifulSoup import BeautifulSoup
 import re
 import random
 from urllib2 import Request, urlopen, URLError, HTTPError
+import urllib2
 from time import sleep
 from urllib import quote_plus
 from string import replace
@@ -61,7 +62,7 @@ SORT_OPTIONS = ['', 'dateAsc', 'dateDesc']
 
 class TroveNewspapersClient:
     
-    def __init__(self, titles=True):
+    def __init__(self, titles=True, user=None, password=None):
         if titles:
             self.titles_by_state = open_titles('state')
             self.titles_by_id = open_titles('id')
@@ -73,6 +74,8 @@ class TroveNewspapersClient:
         self.results = []
         self.total_results = 0
         self.tries = 1
+        self.user = user
+        self.password = password
         
     def reset(self):
         self.query = ''
@@ -485,6 +488,12 @@ class TroveNewspapersClient:
         '''
         Retrieve page.
         '''
+        if self.user and self.password:
+            passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+            passman.add_password(None, 'trove.nla.gov.au', self.user, self.password)
+            authhandler = urllib2.HTTPBasicAuthHandler(passman)
+            opener = urllib2.build_opener(authhandler)
+            urllib2.install_opener(opener)
         user_agent = 'Mozilla/5.0 (X11; Linux i686; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
         headers = { 'User-Agent' : user_agent }
         req = Request(self.query, None, headers)
@@ -516,10 +525,11 @@ class ServerError(Exception):
 
 if __name__ == "__main__":
     #Examples
-    np = TroveNewspapersClient()
+    np = TroveNewspapersClient(user='wragge', password='brillig')
     #np.search(exactPhrase="inclement wragge")
     #np.search(url="http://trove.nla.gov.au/newspaper/result?q=&exactPhrase=inclement+wragge")
-    np.search(state="vic")
+    np.search(url="https://trove.nla.gov.au/newspaper/result?l-usertag=test2&q=")
+    #np.search(state="vic")
     #np.get_random_articles(year="1880", kw_all="kelly", kw_any="ireland irish")
     #np.get_random_articles(year="1880", filters=['title', 'month'])
     #np.get_random_articles(year="1880", titles=['35'])
