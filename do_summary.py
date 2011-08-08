@@ -6,12 +6,15 @@ Created on 12/04/2011
 from __future__ import with_statement
 import string
 import re
+import datetime
 try:
     import json
 except ImportError:
     import simplejson as json
 
 import scrape
+
+DIRECTORY = '/home/tim/Documents/research/trove'
 
 def main():
     news = scrape.TroveNewspapersClient(titles=True)
@@ -29,11 +32,12 @@ def summary_all(news):
         news.reset()
         news.tries = 10
         news.search(**args)
+        print news.query
         total = int(string.replace(news.total_results, ',', ''))
         totals[year] = total
         print '%s: %s' % (year, total)
     total_list = [[year, total] for year, total in totals.items()]
-    with open('graph/data/summary-totals.js', 'wb') as jsfile:
+    with open('%s/summary-totals-%s.js' % (DIRECTORY, datetime.datetime.now().strftime('%Y-%m-%d')), 'wb') as jsfile:
         jsfile.write('var totals = %s;' % json.dumps(total_list))
     print 'Completed!'
     
@@ -53,7 +57,7 @@ def summary_by_state(news):
             total = int(string.replace(news.total_results, ',', ''))
             totals[state][year] = total
             print '%s %s: %s' % (state, year, total)
-    with open('graph/data/summary-totals-bystate.js', 'wb') as jsfile:
+    with open('%s/summary-totals-bystate-%s.js' % (DIRECTORY, datetime.datetime.now().strftime('%Y-%m-%d')), 'wb') as jsfile:
         for state, values in totals.items():
             total_list = [[year, total] for year, total in values.items()]
             jsfile.write('var %s_totals = %s;\n' % (state, json.dumps(total_list)))
@@ -86,7 +90,7 @@ def summary_by_title(news):
                 print '%s %s: %s' % (name, year, total)
             if totals[title['id']]:
                 series.append([title['id'], name])
-        with open('graph/data/summary-totals-%s.js' % state, 'wb') as jsfile:
+        with open('%s/summary-totals-%s-%s.js' % (DIRECTORY, state, datetime.datetime.now().strftime('%Y-%m-%d')), 'wb') as jsfile:
             data = {}
             results = {}
             for title, values in totals.items():
