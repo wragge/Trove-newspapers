@@ -35,6 +35,7 @@ import help
 ID_BEGIN = 100
 wxStdOut, EVT_STDDOUT = NewEvent()
 wxWorkerDone, EVT_WORKER_DONE = NewEvent()
+wxHarvestResult, EVT_HARVEST_RESULT = NewEvent()
 
 def do_harvest(**kwargs):
     '''
@@ -72,37 +73,40 @@ def do_harvest(**kwargs):
     status_message = '%s: Harvest commenced.\n' % datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     status_message += 'Project path: %s\n' % filename
     status_message += 'Query: %s\n' % query
-    status_message += 'Starting at record number:%s' % start
+    status_message += 'Starting at record number:%s\n' % start
     write_log_entry(log_file, status_message)
     # Create a harvest object and set it going
     harvester = harvest.TroveNewspapersHarvester()
     results = harvester.harvest(query, filename, start, text, pdf, zip_dir, gui=True)
+    totals = results['totals']
     # If it's a successful harvest, display some details
-    if not results['error'] and results['total'] == results['completed']:
-        status_message = '%s: Harvest completed - %s of %s articles processed.' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), results['completed'], results['total'])
-        write_log_entry(log_file, status_message)
+    if not results['error'] and totals['total'] == totals['completed']:
+        status_message = '%s: Harvest completed - %s of %s articles processed.\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), totals['completed'], totals['total'])
+        if totals['unavailable'] > 0:
+            status_message += '%s items were not yet digitised.\n\n' % totals['unavailable']
         # Make sure start value is set back at 0
-        config.set('harvest', 'start', 0)
-        with open(cfg_file, 'w') as configfile:
-            config.write(configfile)
+        start_at = 0
     # If it was unsuccessful
     else:
-        if results['completed'] > 0:
+        if totals['completed'] > 0:
             #Print error
-            status_message = '%s: Harvest interrupted - %s of %s articles processed.\n\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), results['completed'], results['total'])
+            status_message = '%s: Harvest interrupted - %s of %s articles processed.\n' % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), totals['completed'], totals['total'])
             status_message += 'Error: %s\n' % results['error']
-            write_log_entry(log_file, status_message)
             # Change the start value in config file and gui
-            config.set('harvest', 'start', results['completed'] - 1)
-            with open(cfg_file, 'w') as configfile:
-                config.write(configfile)
-            wx.GetApp().frame.start_at.SetValue(results['completed'])
+            start_at = totals['completed']
             # Add extra message
-            print '\nClick GO! to restart harvest.'
         else:
             status_message = '%s: Harvest failed.\n' % datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
             status_message += 'Error: %s\n' % results['error']
-            write_log_entry(log_file, status_message)
+            start_at = start
+    write_log_entry(log_file, status_message)
+    config.set('harvest', 'start', start_at)
+    with open(cfg_file, 'w') as configfile:
+        config.write(configfile)
+    if start_at > 0:
+        print 'Click GO! to restart harvest.'
+    evt = wxHarvestResult(start=str(start_at))
+    wx.PostEvent(wx.GetApp().frame, evt)
 
 def write_log_entry(log_file, message):
     '''
@@ -222,7 +226,7 @@ class MainFrame(wx.Frame):
         hbox1.Add((10, -1))
         label_2 = wx.StaticText(panel, -1, label='Folder:')
         hbox1.Add(label_2, flag=wx.RIGHT|wx.LEFT, border=10)
-        self.directory = wx.DirPickerCtrl(panel, -1)
+        self.directory = wx.DirPickerCtrl(panel, -1, style=wx.DIRP_USE_TEXTCTRL)
         hbox1.Add(self.directory)
         vbox2.Add(hbox1, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
         # Extra space
@@ -292,6 +296,7 @@ class MainFrame(wx.Frame):
         self.output_window.Bind(EVT_STDDOUT, self.OnUpdateOutputWindow)
         self.output_window.Bind(wx.EVT_TIMER, self.OnProcessPendingOutputWindowEvents)
         self.Bind(EVT_WORKER_DONE, self.OnWorkerDone)
+        self.Bind(EVT_HARVEST_RESULT, self.OnHarvestResult)
         # Thread
         self.worker = Worker(self, self.requestQ, self.resultQ)
 
@@ -301,6 +306,13 @@ class MainFrame(wx.Frame):
         '''
         value = event.text
         self.output_window.AppendText(value)
+
+    def OnHarvestResult(self, event):
+        '''
+        Update the status box.
+        '''
+        value = event.start
+        self.start_at.SetValue(value)
 
     def OnBegin(self, event):
         '''

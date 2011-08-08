@@ -59,8 +59,10 @@ class TroveNewspapersHarvester:
         Set a few things up.
         '''
         self.gui = False
-        self.completed = 0
-        self.total = 0
+        self.totals = {'total': 0, 'processed': 0, 'harvested': 0, 'unavailable': 0}
+        #self.completed = 0
+        #self.unavailable = 0
+        #self.total = 0
         self.query = ''
         self.path = ''
         self.filename = ''
@@ -111,10 +113,11 @@ class TroveNewspapersHarvester:
         self.zip_dir = zip_dir
         self.set_output_files(filename, text, pdf)
         if start:
-            self.completed = int(start)
+            #self.completed = int(start)
+            self.totals['completed'] = int(start)
         if gui:
             self.gui = gui
-        page_url = '%s&s=%s' % (self.query, self.completed)
+        page_url = '%s&s=%s' % (self.query, self.totals['completed'])
         news = scrape.TroveNewspapersClient(titles=False)
         try:   
             news.search(url=page_url)
@@ -124,7 +127,8 @@ class TroveNewspapersHarvester:
             print 'Harvesting...'
             # Calculate number of pages
             total = int(string.replace(news.total_results, ',', ''))
-            self.total = total
+            #self.total = total
+            self.totals['total'] = total
             if start:
                 num_pages = (total - int(start)) / 20
             else:
@@ -136,7 +140,7 @@ class TroveNewspapersHarvester:
             while page <= num_pages:
                 news.reset()
                 news.tries = 10                
-                page_url = '%s&s=%s' % (self.query, self.completed)
+                page_url = '%s&s=%s' % (self.query, self.totals['completed'])
                 #print page_url
                 try:
                     news.search(url=page_url)
@@ -145,7 +149,7 @@ class TroveNewspapersHarvester:
                 else:
                     self.write_rows(news)
                     page += 1
-        return {'status': 'success', 'error': None, 'total': self.total, 'completed': self.completed}
+        return {'status': 'success', 'error': None, 'totals': self.totals}
     
     def write_rows(self, news):
         '''
@@ -162,8 +166,8 @@ class TroveNewspapersHarvester:
                 except Exception, error:
                     return self.harvest_failure(error)
                 else:
-                    print '%s of %s -- %s' % (self.completed + 1, 
-                                              self.total, 
+                    print '%s of %s -- %s' % (self.totals['completed'] + 1, 
+                                              self.totals['total'], 
                                               news.results['title'])
                     self.csv_file.writerow(news.results)
                     if self.text_zip_file or self.pdf_zip_file:
@@ -196,8 +200,11 @@ class TroveNewspapersHarvester:
                             self.pdf_zip_file.writestr(('%s/%s.pdf' % 
                                                        (directory, filename)).encode('utf-8'), 
                                                        content.read())
+                    self.totals['harvested'] += 1
                     time.sleep(1)
-            self.completed += 1
+            else:
+                self.totals['unavailable'] += 1
+            self.totals['completed'] += 1
 
                     
     def try_url(self, url):
@@ -236,23 +243,23 @@ class TroveNewspapersHarvester:
         Display information that should allow a failed harvest to be resumed.
         '''
         if self.gui:
-            return {'status': 'error', 'error': error, 'total': self.total, 'completed': self.completed}
+            return {'status': 'error', 'error': error, 'totals': self.totals}
         else:
             print 'Harvest failed with error %s\n' % error
-            if self.completed > 0:
+            if self.totals['completed'] > 0:
                 error_file = '%s_error.txt' % self.path
                 error_message = 'Sorry your harvest failed.\n'
                 error_message += 'The error was %s.\n\n' % error
                 error_message += 'But never fear, you can easily restart your harvest.\n'
-                error_message += 'Just set the "start" option in harvest.ini to %s,\n' % self.completed
+                error_message += 'Just set the "start" option in harvest.ini to %s,\n' % self.totals['completed']
                 error_message += 'and then run "do_harvest" again.\n\n'
-                error_message += 'Note that row number %s in the CSV file might be repeated.\n' % self.completed
+                error_message += 'Note that row number %s in the CSV file might be repeated.\n' % self.totals['harvested']
                 with open(error_file, 'w') as efile:
                     efile.write(error_message)
                 print 'To resume harvest use the following command:\n'
                 restart_message = 'python do_harvest.py -q "%s" -f "%s" -s %s' % (self.query, 
                                                                        self.filename, 
-                                                                       self.completed)
+                                                                       self.totals['completed'])
                 if self.text_zip_file:
                     restart_message += ' -t'
                 if self.pdf_zip_file:
