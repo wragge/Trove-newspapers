@@ -50,6 +50,8 @@ import sys
 import string
 import time
 import re
+import datetime
+import os.path
 try:
     import json
 except ImportError:
@@ -79,6 +81,7 @@ def main(argv):
     if not query:
         print 'You need to supply a word or phrase to search for.'
         sys.exit(2)
+    filename = '%s-%s' % (filename, datetime.datetime.now().strftime('%Y-%m-%d'))
     news = scrape.TroveNewspapersClient()
     if re.search('&fromyyyy=(\d{4})', query):
         start = int(re.search('&fromyyyy=(\d{4})', query).group(1))
@@ -114,12 +117,17 @@ def main(argv):
         else:
             ratios[year] = 0
         time.sleep(1)
-    total_list = [[year, total] for year, total in totals.items()]
-    ratio_list = [[year, value] for year, value in ratios.items()]
+    var_name = os.path.basename(filename).replace(' ', '_').replace('-', '_')
+    data = {}
+    data['totals'] = [[year, total] for year, total in totals.items()]
+    data['ratios'] = [[year, value] for year, value in ratios.items()]
     with open('%s-data.js' % filename, 'wb') as jsfile:
-        jsfile.write('var totals = %s;' % json.dumps(total_list))
-        jsfile.write('var ratios = %s;' % json.dumps(ratio_list))
-    print total_list
+        jsfile.write('// Query: %s\n' % query)
+        jsfile.write('// Date: %s\n' % datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+        jsfile.write('%s = %s' % (var_name, json.dumps(data)))
+        #jsfile.write('var %s_totals = %s;\n' % (var_name, json.dumps(total_list)))
+        #jsfile.write('var %s_ratios = %s;\n' % (var_name, json.dumps(ratio_list)))
+    print data
 
 def remove_dates_from_query(query):
     '''
