@@ -3,30 +3,72 @@ do_totals.py
 Created on 18/02/2011
 @author: Tim Sherratt (tim@discontents.com.au)
 
+============
 SUMMARY
+============
 
 This script takes a Trove newspapers search and then for each year
 extracts the number of articles matching the search and the proportion
 of the total number of articles (ie search total / all articles total).
 
-The results are saved as two JSON objects containing [year, value] pairs.
-These can be easily imported into an HTML file and graphed using jqPlot
-(http://www.jqplot.com/index.php).
+The results are saved in a JSON object which is automatically imported 
+into an HTML file and graphed using HighCharts.
 
+============
 USAGE
+============
 
-It is run from the command line with the following arguments:
+do_titles.py [options] "your trove query url"
 
-    -q (or --query) [full url of Trove newspapers search]
-    -f (or --filename) [file and path name for the js output, don't include file extension]
-    
+The url of your Trove query is the only required argument. The options allow you
+to control the names and locations of your output files.
 
+Options:
+
+    -n (or --name) [The name of this series -- used for file names and to label 
+                    the graph. Default is the search string. ]
+    -p (or --pathname) [The full pathname of the directory/folder for your results.
+                        Default is a 'graphs' sub-directory in the current directory.]
+    -g (or --graph) [The name of an existing graph (html file) that you want to add 
+                     this series to. Default is the series name.] 
+
+To display multiple series in a single graph, simply use the 'graph' option to specify the
+name of the html output file.
+
+============
 OUTPUT
+============
 
-filename-data.js file containing:
+The script creates a data file in the specified directory. The filename is based
+on the supplied series name with an added date stamp, eg: 'your_series_name_2011_08_30.js'.
 
-    var data = [[year1, value1], [year2, value2]...]
-    var ratios = [[year1, value1], [year2, value2]...]
+The data file creates a new graphData object and sets its name, query and data 
+properties. This object is then added to a sources array.
+
+The script also creates an html file in the same directory and with the same 
+filename (except with an .html extension). This file automatically imports 
+the data and displays a graph. You can manually customise the html if you want.
+
+If you used the 'graph' parameter to supply the name of an existing html file,
+the script will add the new data source to the existing graph. This makes it easy 
+to build up comparisons.
+
+The script also checks your results directory to see if it contains a 'css' and 
+a 'scripts' directory. If they don't exist it will copy them across from the 
+trovenewspapers source directory. (See REQUIREMENTS for an important note about the 
+javascript files.)
+
+============
+REQUIREMENTS
+============
+
+The html file uses Highcharts to display the graph. The license conditions allow
+Highcharts to be redistributed as part of non-commercial packages. However, Highcharts
+is not free for commercial use. See the Highcharts website for details:
+
+http://www.highcharts.com/
+
+------------------------------------------------------------
 
 Copyright (C) 2011 Tim Sherratt
 This file is part of the TroveNewspapers package.
@@ -44,14 +86,20 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with the TroveNewspapers package. If not, see <http://www.gnu.org/licenses/>.
 '''
+
 from __future__ import with_statement
+from optparse import OptionParser
 import getopt
 import sys
 import string
 import time
 import re
 import datetime
+import os
 import os.path
+import urlparse
+import urllib
+import shutil
 try:
     import json
 except ImportError:
@@ -59,75 +107,173 @@ except ImportError:
 
 import scrape
 
+ARTICLE_TYPES = {'Advertising|category:Advertising': 'advertising',
+                 'Article|category:Article': 'news',
+                 'Detailed+lists,+results,+guides|category:Detailed+lists,+results,+guides': 'lists',
+                 'Family+Notices|category:Family+Notices': 'family',
+                 'Literature|category:Literature': 'literature'}
+                 
 def main(argv):
     '''
     Cycle through years obtaining totals and proportions.
     Save as JSON.
     '''
-    try:
-        opts, args = getopt.getopt(argv, "q:f:a", 
-                                   ["query=", "filename=", "all"])
-    except getopt.GetoptError:                                
+    usage = 'usage: %prog [options] query'
+    parser = OptionParser(usage=usage)
+    parser.add_option('-n', '--n', dest='series_name', metavar='NAME',
+                      help='name of the data series created from this query')
+    parser.add_option('-d','--directory', dest='pathname', metavar='DIRECTORY',
+                      help='directory in which to save graph and data')
+    parser.add_option('-g','--graph', dest='graph',
+                      help='name of graph (html) file for display')
+    (options, args) = parser.parse_args()
+    if not args:
+        # Exit if no query is supplied
+        print 'You need to supply a query to harvest.'
         sys.exit(2)
-    for opt, arg in opts:
-        if opt in ('-q', '--query'):
-            query = arg
-        if opt in ('-f', '--filename'):
-            filename = arg
-        if opt in ('-a', '--all'):
-            all = True
+    else:
+        query = args[0]
+    # If no series name is set use the keyword values from the query string
+    if not options.series_name:
+        query_parts = urlparse.parse_qs(urlparse.urlsplit(query)[3])
+        if 'q' in query_parts:
+            series_name = query_parts['q'][0].replace('"', '').replace('+', ' ')
+        elif 'exactPhrase' in query_parts:
+            series_name = query_parts['exactPhrase'].replace('+', ' ')
+        elif 'anyWords' in query_parts:
+            series_name = query_parts['anyWords'].replace('+', ' ')
         else:
-            all = False
-    if not query:
-        print 'You need to supply a word or phrase to search for.'
-        sys.exit(2)
-    filename = '%s-%s' % (filename, datetime.datetime.now().strftime('%Y-%m-%d'))
+            series_name = 'Trove series'
+    else:
+        series_name = options.series_name
+    # If no directory is set, use the current directory/graphs
+    if options.pathname:
+        pathname = options.pathname
+    else:
+        pathname = os.path.join(os.getcwd(), 'graphs')
+    # Build output filenames including a time stamp
+    var_name = '%s_%s' % (series_name.lower().replace(' ', '_').replace('-', '_'), datetime.datetime.now().strftime('%Y_%m_%d'))
+    filename = os.path.join(pathname, var_name)
+    # If no graph name is set, use the output filename
+    if options.graph:
+        graph_name = '%s.html' % (options.graph.lower().replace(' ', '_').replace('-', '_'))
+    else:
+        graph_name = '%s.html' % filename
     news = scrape.TroveNewspapersClient()
+    # Look to see if a start year is set, otherwise start in 1803
     if re.search('&fromyyyy=(\d{4})', query):
         start = int(re.search('&fromyyyy=(\d{4})', query).group(1))
     else:
         start = 1803
+    # Look to see if an end year is set, otherwise end in 1954
     if re.search('&toyyyy=(\d{4})', query):
         end = int(re.search('&toyyyy=(\d{4})', query).group(1))
     else:
         end = 1954
+    # Remove dates from the query
     query = remove_dates_from_query(query)
-    totals = {}
-    ratios = {}
+    totals = []
+    ratios = []
+    data = {}
     for year in range(start, end + 1):
         this_query = '%s&fromyyyy=%s&toyyyy=%s' % (query, year, year)
         news.reset()
         news.tries = 10
         news.search(url=this_query)
+        # Get the total results
         total = int(string.replace(news.total_results, ',', ''))
-        totals[year] = total
         print '%s: %s' % (year, total)
+        # if total results > 0 get the total articles for the year
         if total > 0:
-            if all:
-                this_query = 'http://trove.nla.gov.au/newspaper/result?fromyyyy=%s&toyyyy=%s' % (year, year)
-            else:
-                this_query = 'http://trove.nla.gov.au/newspaper/result?fromyyyy=%s&toyyyy=%s&l-category=Article|category:Article' % (year, year)
+            this_query = remove_keywords_from_query(query)
+            this_query = '%s&fromyyyy=%s&toyyyy=%s' % (this_query, year, year)
             news.reset()
             news.tries = 10
             news.search(url=this_query)
             total_all = int(string.replace(news.total_results, ',', ''))
-            ratios[year] = float(total) / total_all
+            # Calculate the proportion
+            ratio = float(total) / total_all
             print '%s total: %s' % (year, total_all)
-            print 'Ratio: %s' % ratios[year]
+            print 'Ratio: %s' % ratio
         else:
-            ratios[year] = 0
+            ratio = 0
+        data[int(year)] = {'total': total, 'ratio': ratio}
         time.sleep(1)
-    var_name = os.path.basename(filename).replace(' ', '_').replace('-', '_')
-    data = {}
-    data['totals'] = [[year, total] for year, total in totals.items()]
-    data['ratios'] = [[year, value] for year, value in ratios.items()]
-    with open('%s-data.js' % filename, 'wb') as jsfile:
+    # Write the data out to a js file
+    with open('%s.js' % filename, 'wb') as jsfile:
         jsfile.write('// Query: %s\n' % query)
         jsfile.write('// Date: %s\n' % datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
-        jsfile.write('%s = %s' % (var_name, json.dumps(data)))
-        #jsfile.write('var %s_totals = %s;\n' % (var_name, json.dumps(total_list)))
-        #jsfile.write('var %s_ratios = %s;\n' % (var_name, json.dumps(ratio_list)))
+        jsfile.write('var %s = new graphData();\n' % var_name)
+        jsfile.write('%s.name = "%s";\n' % (var_name, series_name))
+        jsfile.write("%s.api_query = '%s';\n" % (var_name, parse_query(query)))
+        jsfile.write('%s.data = %s;\n' % (var_name, json.dumps(data)))
+        jsfile.write('dataSources.sources.push(%s);' % var_name)
+    # Create the graph file
+    create_html_page(pathname, graph_name, var_name, query, series_name)
     print data
+
+def create_html_page(pathname, graph_name, var_name, query, series_name):
+    '''
+    Makes sure all the necessary scripts and styles are copied to the output
+    directory. Inserts a reference to the data js file into the html output.
+    '''
+    css_dir = os.path.join(pathname, 'css')
+    script_dir = os.path.join(pathname, 'scripts')
+    html_path = os.path.join(pathname, graph_name)
+    if not os.path.exists(css_dir):
+        shutil.copytree('graphs/css', css_dir)
+    if not os.path.exists(script_dir):
+        shutil.copytree('graphs/scripts', script_dir)
+    if not os.path.exists(html_path):
+        html_in = 'graphs/graph.html'
+    else:
+        html_in = html_path
+    with open(html_in, 'r') as html_file:
+        html = html_file.read()
+        html = html.replace('<!-- INSERT DATA HERE -->', '<!-- INSERT DATA HERE -->\n<script type="text/javascript" src="%s.js"></script>' % var_name)
+        html = html.replace('<!-- QUERY -->', '<!-- QUERY --><p>Original query: <a href="%s">%s</a></p>' % (query, series_name))
+    with open(html_path, 'w') as new_html:
+        new_html.write(html);
+
+def parse_query(query):
+    '''
+    Converts a Trove query string into a form that the API understands.
+    '''
+    params = []
+    q_string = urlparse.urlparse(query)[4]
+    q_params = urlparse.parse_qs(q_string)
+    if 'q' in q_params:
+        params.append('all=%s' % q_params['q'][0])
+    if 'anyWords' in q_params:
+        params.append('any=%s' % q_params['anyWords'][0])
+    if 'exactPhrase' in q_params:
+        params.append('exact=%s' % q_params['exactPhrase'][0])
+    if 'notWords' in q_params:
+        params.append('exclude=%s' % q_params['notWords'][0])
+    if 'l-category' in q_params:
+        for type in q_params['l-category']:
+            params.append('article_type=%s' % ARTICLE_TYPES[type])
+    if 'l-title' in q_params:
+        for title in q_params['l-title']:
+            params.append('title=%s' % re.search(r'.*?(\d+)$', title).group(1))
+    api_query = ('&').join(params)
+    return api_query
+
+def remove_keywords_from_query(url):
+    '''
+    Removes search keywords from a query string.
+    '''
+    parts = urlparse.urlparse(url)
+    query = urlparse.parse_qsl(parts[4])
+    params = []
+    for param in query:
+        if param[0] in ['q','anyWords', 'exactPhrase', 'notWords']:
+            params.append('%s=' % param[0])
+        else:
+            params.append('%s=%s' % (param[0], urllib.quote_plus(param[1])))
+    cleaned_query = ('&').join(params)
+    cleaned_url = urlparse.urlunparse((parts[0], parts[1], parts[2], parts[3], cleaned_query, parts[5]))
+    return cleaned_url
 
 def remove_dates_from_query(query):
     '''
