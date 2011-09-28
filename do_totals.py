@@ -139,9 +139,9 @@ def main(argv):
         if 'q' in query_parts:
             series_name = query_parts['q'][0].replace('"', '').replace('+', ' ')
         elif 'exactPhrase' in query_parts:
-            series_name = query_parts['exactPhrase'].replace('+', ' ')
+            series_name = query_parts['exactPhrase'][0].replace('+', ' ')
         elif 'anyWords' in query_parts:
-            series_name = query_parts['anyWords'].replace('+', ' ')
+            series_name = query_parts['anyWords'][0].replace('+', ' ')
         else:
             series_name = 'Trove series'
     else:
