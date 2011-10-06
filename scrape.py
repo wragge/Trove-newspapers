@@ -62,7 +62,7 @@ SORT_OPTIONS = ['', 'dateAsc', 'dateDesc']
 
 class TroveNewspapersClient:
     
-    def __init__(self, titles=True, user=None, password=None):
+    def __init__(self, titles=True):
         if titles:
             self.titles_by_state = open_titles('state')
             self.titles_by_id = open_titles('id')
@@ -74,8 +74,8 @@ class TroveNewspapersClient:
         self.results = []
         self.total_results = 0
         self.tries = 1
-        self.user = user
-        self.password = password
+        self.proxy = None
+        #self.proxy = {'user': username, 'pass': password, 'host': 'host.name', 'port': 80}
         
     def reset(self):
         self.query = ''
@@ -488,11 +488,9 @@ class TroveNewspapersClient:
         '''
         Retrieve page.
         '''
-        if self.user and self.password:
-            passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-            passman.add_password(None, 'trove.nla.gov.au', self.user, self.password)
-            authhandler = urllib2.HTTPBasicAuthHandler(passman)
-            opener = urllib2.build_opener(authhandler)
+        if self.proxy:
+            proxy = urllib2.ProxyHandler({"http" : "http://%(user)s:%(pass)s@%(host)s:%(port)d" % self.proxy})
+            opener = urllib2.build_opener(proxy, urllib2.HTTPHandler)
             urllib2.install_opener(opener)
         user_agent = 'Mozilla/5.0 (X11; Linux i686; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
         headers = { 'User-Agent' : user_agent }

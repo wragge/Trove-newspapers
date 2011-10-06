@@ -98,6 +98,11 @@ import datetime
 import os
 import os.path
 import urlparse
+try:
+    from urlparse import parse_qs, parse_qsl
+except ImportError:
+# fall back for Python 2.5 
+    from cgi import parse_qs, parse_qsl
 import urllib
 import shutil
 try:
@@ -135,7 +140,7 @@ def main(argv):
         query = args[0]
     # If no series name is set use the keyword values from the query string
     if not options.series_name:
-        query_parts = urlparse.parse_qs(urlparse.urlsplit(query)[3])
+        query_parts = parse_qs(urlparse.urlsplit(query)[3])
         if 'q' in query_parts:
             series_name = query_parts['q'][0].replace('"', '').replace('+', ' ')
         elif 'exactPhrase' in query_parts:
@@ -241,7 +246,7 @@ def parse_query(query):
     '''
     params = []
     q_string = urlparse.urlparse(query)[4]
-    q_params = urlparse.parse_qs(q_string)
+    q_params = parse_qs(q_string)
     if 'q' in q_params:
         params.append('all=%s' % q_params['q'][0])
     if 'anyWords' in q_params:
@@ -264,7 +269,7 @@ def remove_keywords_from_query(url):
     Removes search keywords from a query string.
     '''
     parts = urlparse.urlparse(url)
-    query = urlparse.parse_qsl(parts[4])
+    query = parse_qsl(parts[4])
     params = []
     for param in query:
         if param[0] in ['q','anyWords', 'exactPhrase', 'notWords']:
