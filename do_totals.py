@@ -131,6 +131,7 @@ def main(argv):
                       help='directory in which to save graph and data')
     parser.add_option('-g','--graph', dest='graph',
                       help='name of graph (html) file for display')
+    parser.add_option('-m', '--monthly', action="store_true", dest="monthly")
     (options, args) = parser.parse_args()
     if not args:
         # Exit if no query is supplied
@@ -177,45 +178,73 @@ def main(argv):
         end = 1954
     # Remove dates from the query
     query = remove_dates_from_query(query)
+    clean_query = remove_keywords_from_query(query)
     totals = []
     ratios = []
     data = {}
+    months = {}
     for year in range(start, end + 1):
-        this_query = '%s&fromyyyy=%s&toyyyy=%s' % (query, year, year)
-        news.reset()
-        news.tries = 10
-        news.search(url=this_query)
-        # Get the total results
-        total = int(string.replace(news.total_results, ',', ''))
-        print '%s: %s' % (year, total)
-        # if total results > 0 get the total articles for the year
-        if total > 0:
-            this_query = remove_keywords_from_query(query)
-            this_query = '%s&fromyyyy=%s&toyyyy=%s' % (this_query, year, year)
-            news.reset()
-            news.tries = 10
-            news.search(url=this_query)
-            total_all = int(string.replace(news.total_results, ',', ''))
-            # Calculate the proportion
-            ratio = float(total) / total_all
-            print '%s total: %s' % (year, total_all)
-            print 'Ratio: %s' % ratio
-        else:
-            ratio = 0
-        data[int(year)] = {'total': total, 'ratio': ratio}
+        print 'Year: %s' % year
+        if options.monthly:
+            for month in range(1, 13):
+                print 'Month: %s' % month
+                this_query = '%s&fromyyyy=%s&frommm=%02d&toyyyy=%s&tomm=%02d' % (query, year, month, year, month)
+                total = get_total(news, this_query)
+                if total > 0:
+                    this_query = '%s&fromyyyy=%s&frommm=%02d&toyyyy=%s&tomm=%02d' % (clean_query, year, month, year, month)
+                    ratio = get_ratio(news, this_query, total)
+                else:
+                    ratio = 0
+                months[int(month)] = {'total': total, 'ratio': ratio}
+            data[int(year)] = months
+        else: 
+            this_query = '%s&fromyyyy=%s&toyyyy=%s' % (query, year, year)
+            total = get_total(news, this_query)
+            # if total results > 0 get the total articles for the year
+            if total > 0:
+                this_query = '%s&fromyyyy=%s&toyyyy=%s' % (clean_query, year, year)
+                ratio = get_ratio(news, this_query, total)
+            else:
+                ratio = 0
+            data[int(year)] = {'total': total, 'ratio': ratio}
         time.sleep(1)
     # Write the data out to a js file
+    if options.monthly:
+        interval = 'month'
+    else:
+        interval = 'year'
     with open('%s.js' % filename, 'wb') as jsfile:
         jsfile.write('// Query: %s\n' % query)
         jsfile.write('// Date: %s\n' % datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
         jsfile.write('var %s = new graphData();\n' % var_name)
         jsfile.write('%s.name = "%s";\n' % (var_name, series_name))
+        jsfile.write('%s.interval = "%s";\n' % (var_name, interval))
         jsfile.write("%s.api_query = '%s';\n" % (var_name, parse_query(query)))
         jsfile.write('%s.data = %s;\n' % (var_name, json.dumps(data)))
         jsfile.write('dataSources.sources.push(%s);' % var_name)
     # Create the graph file
     create_html_page(pathname, graph_name, var_name, query, series_name)
     print data
+
+def get_total(news, this_query):
+    news.reset()
+    news.tries = 10
+    news.search(url=this_query)
+    # Get the total results
+    total = int(string.replace(news.total_results, ',', ''))
+    print '    Query total: %s' % (total)
+    return total
+    
+def get_ratio(news, this_query, total):
+    news.reset()
+    news.tries = 10
+    news.search(url=this_query)
+    total_all = int(string.replace(news.total_results, ',', ''))
+    # Calculate the proportion
+    ratio = float(total) / total_all
+    print '    Article total: %s' % (total_all)
+    print '    Ratio: %s' % ratio
+    return ratio
 
 def create_html_page(pathname, graph_name, var_name, query, series_name):
     '''
