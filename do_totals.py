@@ -30,7 +30,8 @@ Options:
     -p (or --pathname) [The full pathname of the directory/folder for your results.
                         Default is a 'graphs' sub-directory in the current directory.]
     -g (or --graph) [The name of an existing graph (html file) that you want to add 
-                     this series to. Default is the series name.] 
+                     this series to. Default is the series name.]
+    -m (or --monthly) [Query at monthly intervals.]
 
 To display multiple series in a single graph, simply use the 'graph' option to specify the
 name of the html output file.
