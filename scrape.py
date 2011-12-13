@@ -132,9 +132,10 @@ class TroveNewspapersClient:
             self.try_url()
         except Exception:
             raise
-        else:    
+        else:
             try:
                 self.extract_results()
+                print self.results
             except Exception:
                 raise
         
@@ -410,11 +411,11 @@ class TroveNewspapersClient:
         article['url'] = self.query
         article['title'] = (page.find(attrs = {'name': 'newsarticle_headline'})['content']
                                     .encode('utf-8'))
-        if '(' in page.find('div','title').strong.string:
+        if '(' in page.find('div','title').h1.string:
             newspaper, details = (re.search(r'(.*?) \((.*?)\)', page.find('div','title')
-                                .strong.string.strip()).groups())
+                                .h1.string.strip()).groups())
         else:
-            newspaper = page.find('div','title').strong.string.strip()
+            newspaper = page.find('div','title').h1.string.strip()
             details = ''
         article['newspaper_title'] = newspaper
         article['newspaper_details'] = details
@@ -522,10 +523,10 @@ if __name__ == "__main__":
     #np.search(url="http://trove.nla.gov.au/newspaper/result?q=&exactPhrase=inclement+wragge")
     #np.search(url="https://trove.nla.gov.au/newspaper/result?l-usertag=test2&q=")
     #np.search(state="vic")
-    np.get_random_articles(year="1880", kw_all="kelly", kw_any="ireland irish")
+    #np.get_random_articles(year="1880", kw_all="kelly", kw_any="ireland irish")
     #np.get_random_articles(year="1880", filters=['title', 'month'])
     #np.get_random_articles(year="1880", titles=['35'])
-    #np.get_article('61658218')
+    np.get_article('61658218')
     print np.query
     print np.total_results
     print np.results

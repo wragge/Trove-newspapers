@@ -141,7 +141,7 @@ class TroveNewspapersHarvester:
                 news.reset()
                 news.tries = 10                
                 page_url = '%s&s=%s' % (self.query, self.totals['processed'])
-                #print page_url
+                print page_url
                 try:
                     news.search(url=page_url)
                 except Exception, error:
