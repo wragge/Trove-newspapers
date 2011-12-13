@@ -26,6 +26,7 @@ function graphData() {
 	this.query = '';
         this.api_query = '';
 	this.data = {};
+        this.interval = '';
 	this.getYears = function() {
 		var years = [];
 		$.each(this.data, function(year, value) {
@@ -35,16 +36,31 @@ function graphData() {
 		return years;
 	}
 	this.makeSeries = function(type) {
-		years = this.getYears();
+		//years = this.getYears();
 		var series = [];
-		var self = this;
-		$.each(years, function(index, year) {
-			series.push([parseInt(year), self.data[year][type]]);
-		});
+		//var self = this;
+                if (this.interval == "year") {
+                    $.each(this.data, function(year, values) {
+                        series.push([Date.UTC(parseInt(year), 0, 1), values[type]]); 
+                    });
+                } else if (this.interval == "month") {
+                    $.each(this.data, function(year, values) {
+                        $.each(values, function(month, totals) {
+                            series.push([Date.UTC(parseInt(year), parseInt(month)-1, 1), totals[type]]);
+                        });       
+                    });
+                }
+		//$.each(years, function(index, year) {
+		//	series.push([parseInt(year), self.data[year][type]]);
+		//});
 		return series;
 	}
-	this.getTotal = function(year) {
-		return this.data[year.toString()]['total'];
+	this.getTotal = function(year, month) {
+	    if (month > 0) {
+		return this.data[year.toString()][month.toString()]['total'];
+            } else {
+                return this.data[year.toString()]['total'];
+            }
 	}
 }
 </script>
@@ -52,6 +68,11 @@ function graphData() {
 <script type="text/javascript">
 var chart;
 $(function() {
+    if (graphData.interval == "month") {
+        x_date = "%b %Y";
+    } else {
+        x_date = "%b %Y";
+    }
     chart = new Highcharts.Chart({
       chart: {
          renderTo: 'graph',
@@ -64,24 +85,37 @@ $(function() {
        xAxis: {
 		title: {
 			text: 'Year'
-	       },
-		labels: {
-		    formatter: function() {
-		        return Highcharts.numberFormat(this.value, 0, '', '');
-		    }
-		}
+                },
+                type: 'datetime',
+                labels: {
+                    formatter: function() {
+                        return Highcharts.dateFormat(x_date, this.value);
+                    }
+                }
        },
        yAxis: {
           title: {
-             text: '% of articles matching query'
-          },
+                text: '% of articles matching query'
+            },
+            labels: {
+		formatter: function() {
+		    return Highcharts.numberFormat(this.value * 100, 0, '', '');
+		}
+	    },
           min: 0
        },
        tooltip: {
           formatter: function() {
-                    return '<b>'+ this.series.name +'</b><br/>'+
-                this.x +': '+ (this.y * 100).toPrecision(2) + '% (' + dataSources.sources[this.series.index].getTotal(this.x) + ' articles)';
-          }
+                year = new Date(this.x).getFullYear();
+                if (graphData.interval == "month") {
+                    month = new Date(this.x).getMonth() + 1;
+                    alert(month);
+                    return '<b>'+ this.series.name +'</b><br/>'+ month +': '+ (this.y * 100).toPrecision(2) + '% (' + dataSources.sources[this.series.index].getTotal(year, month) + ' articles)';
+                } else {
+                    return '<b>'+ this.series.name +'</b><br/>'+ year +': '+ (this.y * 100).toPrecision(2) + '% (' + dataSources.sources[this.series.index].getTotal(year, 0) + ' articles)';
+
+                }
+         }
        },
       series: dataSources.listSeries('ratio'),
       plotOptions: {
@@ -90,19 +124,29 @@ $(function() {
               point: {
                  events: {
                     click: function() {
-           				showArticles(this.x, this.series);
+                        date = new Date(this.x);
+                        query_date = date.getFullYear();
+           		if (graphData.interval == "month") {
+                            month = date.getMonth() + 1;
+                            if (month < 10) {
+                                query_date = query_date + "/0" + "date.getMonth()";
+                            } else {
+                                query_date = query_date + "/" + "date.getMonth()";
+                            }
+                        }
+                        showArticles(query_date, this.series);
                     }
                  }
               }
            }
         }
     });
-	function showArticles(year, series) {
+	function showArticles(query_date, series) {
 		$('#articles').empty();
 		$('#results').showLoading();
 		$.ajax({
 			dataType: 'jsonp',
-			url: 'http://wraggelabs.appspot.com/api/newspapers/articles/' + year + '/?' + encodeURI(dataSources.sources[series.index].api_query),
+			url: 'http://wraggelabs.appspot.com/api/newspapers/articles/' + query_date + '/?' + encodeURI(dataSources.sources[series.index].api_query),
 			success: function(results) {
 				if (results.results.length > 0) {
 					var articles = $('<dl id="articles"></dl>');

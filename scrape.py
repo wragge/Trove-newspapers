@@ -74,8 +74,6 @@ class TroveNewspapersClient:
         self.results = []
         self.total_results = 0
         self.tries = 1
-        self.proxy = None
-        #self.proxy = {'user': username, 'pass': password, 'host': 'host.name', 'port': 80}
         
     def reset(self):
         self.query = ''
@@ -488,10 +486,6 @@ class TroveNewspapersClient:
         '''
         Retrieve page.
         '''
-        if self.proxy:
-            proxy = urllib2.ProxyHandler({"http" : "http://%(user)s:%(pass)s@%(host)s:%(port)d" % self.proxy})
-            opener = urllib2.build_opener(proxy, urllib2.HTTPHandler)
-            urllib2.install_opener(opener)
         user_agent = 'Mozilla/5.0 (X11; Linux i686; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
         headers = { 'User-Agent' : user_agent }
         req = Request(self.query, None, headers)
@@ -523,12 +517,12 @@ class ServerError(Exception):
 
 if __name__ == "__main__":
     #Examples
-    np = TroveNewspapersClient(user='wragge', password='brillig')
+    np = TroveNewspapersClient()
     #np.search(exactPhrase="inclement wragge")
     #np.search(url="http://trove.nla.gov.au/newspaper/result?q=&exactPhrase=inclement+wragge")
-    np.search(url="https://trove.nla.gov.au/newspaper/result?l-usertag=test2&q=")
+    #np.search(url="https://trove.nla.gov.au/newspaper/result?l-usertag=test2&q=")
     #np.search(state="vic")
-    #np.get_random_articles(year="1880", kw_all="kelly", kw_any="ireland irish")
+    np.get_random_articles(year="1880", kw_all="kelly", kw_any="ireland irish")
     #np.get_random_articles(year="1880", filters=['title', 'month'])
     #np.get_random_articles(year="1880", titles=['35'])
     #np.get_article('61658218')
