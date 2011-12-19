@@ -13,6 +13,8 @@ import pickle
 from urllib2 import Request, urlopen, URLError, HTTPError
 import time
 import os
+import calendar
+import datetime
 
 def get_titles():
     '''
@@ -109,9 +111,39 @@ def open_titles(bykey, path=None):
     except Exception:
         print 'Unknown error'
 
+def parse_date(date):
+    '''
+    Parses dates from Trove of the form Friday 27 October 1911.
+    '''
+    months = dict((v,k) for k,v in enumerate(calendar.month_name))
+    day, month, year = re.findall('\w+ (\d{1,2}) (\w+) (\d{4})', date)[0]
+    month_num = months[month]
+    return datetime.date(int(year), month_num, int(day))
+    
+def format_date(date):
+    '''
+    Format a nice date string. (Bypassing strftime's problems with years < 1900)
+    '''
+    date_tuple = date.timetuple()
+    return '%s %s %s %s' % (calendar.day_name[date_tuple[6]], date_tuple[2], calendar.month_name[date_tuple[1]], date_tuple[0])
+
+def find_duplicates(list):
+    '''
+    Check a list for suplicate values.
+    Returns a list of the duplicates.
+    '''
+    seen = set()
+    duplicates = []
+    for item in list:
+        if item in seen:
+            duplicates.append(item)
+        seen.add(item)
+    return duplicates
+    
 if __name__ == "__main__":
     #create_date_ranges()
     #create_titles_pickle()
     #save_titles(format='pickle', bykey='id')
     #save_titles(format='pickle', bykey='state')
-    save_titles()
+    #save_titles()
+    print parse_date('Friday 27 October 1911')
