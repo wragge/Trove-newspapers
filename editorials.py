@@ -1,0 +1,77 @@
+import csv
+import datetime
+import calendar
+import os
+import json
+import urllib2
+
+from utilities import parse_date, format_date, find_duplicates
+
+def check_csv(file_name, year=None, exclude=[]):
+    '''
+    Check for missing editorials
+    year: check every day in the specified year
+    exclude: list of days to exclude from checking (eg. to exclude Sunday [6])
+    '''
+    articles = csv.reader(open(file_name, 'rb'), delimiter=',', quotechar='"')
+    article_dates = []
+    missing_dates = []
+    for article in articles:
+        # Get the date
+        date = parse_date(article[6])
+        article_dates.append(date)
+    article_dates.sort()
+    duplicates = find_duplicates(article_dates)
+    print 'Duplicates: %s' % len(duplicates)
+    if year:
+        start_date = datetime.date(year, 1, 1)
+        end_date = datetime.date(year, 12, 31)
+    else:
+        start_date = article_dates[0]
+        end_date = article_dates[-1]
+    one_day = datetime.timedelta(days=1)
+    this_day = start_date
+    # Loop through each day in specified period to see if there's an article
+    # If not, add to the missing_dates list.
+    while this_day <= end_date:
+        if this_day.weekday() not in exclude: #exclude Sunday
+            if this_day not in article_dates:
+                missing_dates.append(this_day)
+        this_day += one_day
+    print 'Missing: %s' % len(missing_dates)
+    csv_out = csv.DictWriter(open(file_name, 'ab'), extrasaction='ignore', 
+                                       fieldnames=['id', 'title', 'url', 
+                                                   'newspaper_title', 'newspaper_details', 
+                                                   'newspaper_id', 'issue_date', 'page', 
+                                                   'page_url','corrections','ftext'], 
+                                                   dialect=csv.excel)
+    # Write a results file with nicely formatted dates
+    with open(os.path.join(os.path.dirname(file_name), 'csv_check.html'), 'wb') as results:
+        results.write('<html>\n<head>\n  <title>Results</title>\n</head>\n<body>')
+        results.write('<h2>Duplicates:</h2>\n<table>\n')
+        for dup in duplicates:
+            results.write('<tr><td>%s</td><td><a href="%s">View issue</a></td></tr>\n' % (format_date(dup), get_issue_url(dup, '35')))
+        results.write('</table>\n')
+        results.write('<h2>Missing:</h2>\n<table>\n')
+        for missing in missing_dates:
+            results.write('<tr><td>%s</td><td><a href="%s">View issue</a></td></tr>\n' % (format_date(missing), get_issue_url(missing, '35')))
+            csv_out.writerow({'issue_date': format_date(missing)})
+        results.write('</table>\n')
+        results.write('</body>\n</html>')
+            
+def get_issue_url(date, title_id):
+    '''
+    Gets the issue url given a title and date.
+    '''
+    year, month, day = date.timetuple()[:3]
+    url = 'http://trove.nla.gov.au/ndp/del/titlesOverDates/%s/%02d' % (year, month)
+    issues = json.load(urllib2.urlopen(url))
+    for issue in issues:
+        if issue['t'] == title_id and int(issue['p']) == day:
+            issue_id = issue['iss']
+    return 'http://trove.nla.gov.au/ndp/del/issue/%s' % issue_id
+        
+        
+if __name__ == "__main__":
+    check_csv('/Users/tim/Documents/NMA/1913/smh-editorials.csv', year=1913, exclude=[6])
+    #print get_issue_url(datetime.date(1913, 1, 2), '35')
