@@ -253,12 +253,12 @@ def create_html_page(pathname, graph_name, var_name, query, series_name):
     directory. Inserts a reference to the data js file into the html output.
     '''
     css_dir = os.path.join(pathname, 'css')
-    script_dir = os.path.join(pathname, 'scripts')
+    script_dir = os.path.join(pathname, 'js')
     html_path = os.path.join(pathname, graph_name)
     if not os.path.exists(css_dir):
         shutil.copytree('graphs/css', css_dir)
     if not os.path.exists(script_dir):
-        shutil.copytree('graphs/scripts', script_dir)
+        shutil.copytree('graphs/js', script_dir)
     if not os.path.exists(html_path):
         html_in = 'graphs/graph.html'
     else:
@@ -266,7 +266,8 @@ def create_html_page(pathname, graph_name, var_name, query, series_name):
     with open(html_in, 'r') as html_file:
         html = html_file.read()
         html = html.replace('<!-- INSERT DATA HERE -->', '<!-- INSERT DATA HERE -->\n<script type="text/javascript" src="%s.js"></script>' % var_name)
-        html = html.replace('<!-- QUERY -->', '<!-- QUERY --><p>Original query: <a href="%s">%s</a></p>' % (query, series_name))
+        html = html.replace('<!-- QUERY -->', '<!-- QUERY -->\n<p>Original query: <a href="%s">%s</a></p>\n' % (query, series_name))
+        html = html.replace('<!-- DATE -->', '<!-- DATE -->\n<p>Date harvested: %s\n' % datetime.datetime.now().strftime('%d %B %Y'))
     with open(html_path, 'w') as new_html:
         new_html.write(html);
 

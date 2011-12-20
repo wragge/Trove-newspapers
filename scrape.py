@@ -135,7 +135,6 @@ class TroveNewspapersClient:
         else:
             try:
                 self.extract_results()
-                print self.results
             except Exception:
                 raise
         

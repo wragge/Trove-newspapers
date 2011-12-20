@@ -1,232 +1,97 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!doctype html>
+<!-- paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/ -->
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en"> <![endif]-->
+<!-- Consider adding an manifest.appcache: h5bp.com/d/Offline -->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title>Wragge Labs -- Trove graphs</title>
-<link href="css/reset.css" rel="stylesheet" media="screen" /> 
-<link href="css/960.css" rel="stylesheet" media="screen" /> 
-<link href="scripts/showLoading/css/showLoading.css" rel="stylesheet" media="screen" /> 
-<script type="text/javascript" src="scripts/jquery-1.4.4.min.js" charset="utf-8"></script>
-<script src="scripts/highcharts/highcharts.js" type="text/javascript"></script>
-<script type="text/javascript" src="scripts/showLoading/js/jquery.showLoading.min.js"></script>
-<script type="text/javascript">
-var dataSources = {
-	'sources': [],
-	'listSeries': function(type) {
-			var series = [];
-			$.each(this.sources, function(index, source) {
-				series.push({'name': source.name, 'data': source.makeSeries(type)});
-			});
-			return series;
-		}
-}
-function graphData() {
-	this.label = '';
-	this.query = '';
-        this.api_query = '';
-	this.data = {};
-        this.interval = '';
-	this.getYears = function() {
-		var years = [];
-		$.each(this.data, function(year, value) {
-			years.push(year);
-		});
-		years.sort();
-		return years;
-	}
-	this.makeSeries = function(type) {
-		//years = this.getYears();
-		var series = [];
-		//var self = this;
-                if (this.interval == "year") {
-                    $.each(this.data, function(year, values) {
-                        series.push([Date.UTC(parseInt(year), 0, 1), values[type]]); 
-                    });
-                } else if (this.interval == "month") {
-                    $.each(this.data, function(year, values) {
-                        $.each(values, function(month, totals) {
-                            series.push([Date.UTC(parseInt(year), parseInt(month)-1, 1), totals[type]]);
-                        });       
-                    });
-                }
-		//$.each(years, function(index, year) {
-		//	series.push([parseInt(year), self.data[year][type]]);
-		//});
-		return series;
-	}
-	this.getTotal = function(year, month) {
-	    if (month > 0) {
-		return this.data[year.toString()][month.toString()]['total'];
-            } else {
-                return this.data[year.toString()]['total'];
-            }
-	}
-}
-</script>
-<!-- INSERT DATA HERE -->
-<script type="text/javascript">
-var chart;
-$(function() {
-    if (dataSources.sources[0].interval == "month") {
-        x_date = "%b %Y";
-    } else {
-        x_date = "%Y";
-    }
-    chart = new Highcharts.Chart({
-      chart: {
-         renderTo: 'graph',
-         type: 'spline',
-         zoomType: 'x'
-      },
-      title: {
-          text: 'Trove newspaper articles by year'
-       },
-       xAxis: {
-		title: {
-			text: 'Year'
-                },
-                type: 'datetime',
-                labels: {
-                    formatter: function() {
-                        return Highcharts.dateFormat(x_date, this.value);
-                    }
-                }
-       },
-       yAxis: {
-          title: {
-                text: '% of articles matching query'
-            },
-            labels: {
-		formatter: function() {
-		    return Highcharts.numberFormat(this.value * 100, 2, '.', '');
-		}
-	    },
-          min: 0
-       },
-       tooltip: {
-          formatter: function() {
-                year = new Date(this.x).getFullYear();
-                if (dataSources.sources[this.series.index].interval == "month") {
-                    month = new Date(this.x).getMonth() + 1;
-                    month_name = Highcharts.dateFormat("%b %Y", this.x);
-                    return '<b>'+ this.series.name +'</b><br/>'+ month_name +': '+ (this.y * 100).toPrecision(2) + '% (' + dataSources.sources[this.series.index].getTotal(year, month) + ' articles)';
-                } else {
-                    return '<b>'+ this.series.name +'</b><br/>'+ year +': '+ (this.y * 100).toPrecision(2) + '% (' + dataSources.sources[this.series.index].getTotal(year, 0) + ' articles)';
+  <meta charset="utf-8">
 
-                }
-         }
-       },
-      series: dataSources.listSeries('ratio'),
-      plotOptions: {
-           series: {
-              cursor: 'pointer',
-              point: {
-                 events: {
-                    click: function() {
-                        date = new Date(this.x);
-                        query_date = date.getFullYear();
-           		if (graphData.interval == "month") {
-                            month = date.getMonth() + 1;
-                            if (month < 10) {
-                                query_date = query_date + "/0" + "date.getMonth()";
-                            } else {
-                                query_date = query_date + "/" + "date.getMonth()";
-                            }
-                        }
-                        showArticles(query_date, this.series);
-                    }
-                 }
-              }
-           }
-        }
-    });
-	function showArticles(query_date, series) {
-		$('#articles').empty();
-		$('#results').showLoading();
-		$.ajax({
-			dataType: 'jsonp',
-			url: 'http://wraggelabs.appspot.com/api/newspapers/articles/' + query_date + '/?' + encodeURI(dataSources.sources[series.index].api_query),
-			success: function(results) {
-				if (results.results.length > 0) {
-					var articles = $('<dl id="articles"></dl>');
-					$.each(results.results, function(key, article) {
-						articles.append('<dt><a href="'+ article.url + '">' + article.title + '</a></dt>');
-						articles.append('<dd><em>' + article.newspaper_title + '</em>, ' + article.issue_date + '</dd>');
-					});
-					$('#articles').append(articles);
-				} else if (results.error == "An error occurred: ApplicationError: 5 ") {
-					$('#articles').append('<p>Sorry, Trove took too long to respond. Use the link below to query Trove directly.<p>');
-				}
-				$('#articles').append('<div class="more"><p><a href="' + results.query + '">&gt; View more in Trove</a></p></div>')
-				$('#results').hideLoading();
-			}
-		});
-	}
+  <!-- Use the .htaccess and remove these lines to avoid edge case issues.
+       More info: h5bp.com/b/378 -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 
-});
-</script>
+  <title></title>
+  <meta name="description" content="">
+  <meta name="author" content="">
 
-<style>
-body {font-family: Arial, sans-serif; background-color: #212121; color:#222222; font-size: 1em;}
-h1 {font-weight: normal; font-size: 1.8em; margin: 20px 0 20px 0; color: #ffffff;}
-h2 { font-size: 1.2em;}
-h3 { margin: 0 0 10px 0; }
-a {color:#222222;}
-.left-col, .right-col {margin-bottom: 20px; background-color: #ffffff;; -moz-border-radius: 2px; -webkit-border-radius: 2px; border-radius: 2px;}
-.left-col {}
-.right-col {min-height: 400px;}
-.header, .footer { background-color: #212121; }
-.box-wrap { padding: 10px; }
-#articles p { font-size: 0.8em; }
-dd { font-size: 0.8em; margin-left: 10px; line-height: 1;}
-dt {font-size: 0.8em; margin-top: 5px;}
-.more {margin: 10px 0 10px 0; text-align: right;}
-.more p {font-weight: bold; }
-.notes {margin-top: 10px; font-size: 0.8em; padding: 10px 0 0 0; border-top: 1px dotted #212121;}
-ul {list-style: disc; margin: 10px 0 10px 40px;}
-.notes p, .controls p { margin-bottom: 10px;}
-p.link { text-align: right; font-weight: bold; }
-.footer { padding-top: 10px; color: #ffffff; font-size: 0.8em;}
-.footer a { color: #ffffff; }
-</style>
+  <!-- Mobile viewport optimized: j.mp/bplateviewport -->
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <!-- Place favicon.ico and apple-touch-icon.png in the root directory: mathiasbynens.be/notes/touch-icons -->
+
+  <!-- CSS: implied media=all -->
+  <!-- CSS concatenated and minified via ant build script-->
+  <link rel="stylesheet" href="css/style.css">
+  <link href="css/960.css" rel="stylesheet" media="screen" /> 
+  <link href="js/mylibs/showLoading/css/showLoading.css" rel="stylesheet" media="screen" /> 
+  <!-- end CSS-->
+
+  <!-- More ideas for your <head> here: h5bp.com/d/head-Tips -->
+
+  <!-- All JavaScript at the bottom, except for Modernizr / Respond.
+       Modernizr enables HTML5 elements & feature detects; Respond is a polyfill for min/max-width CSS3 Media Queries
+       For optimal performance, use a custom Modernizr build: www.modernizr.com/download/ -->
+  <script src="js/libs/modernizr-2.0.6.min.js"></script>
 </head>
+
 <body>
-<div class="container_12">
-	<div class="grid_12 header">
-		<div class="box-wrap">
-			<h1>Trove newspapers</h1>
-		</div>
+  <div id="container" class="container_12">
+    <header class="grid_12">
+        <div id="type_selector">Show: <select id="graph_type"><option value="ratio">proportion</option><option value="total">total articles</option></select></div>
+        <h1>QueryPic</h1>
+    </header>
+    <div id="main" role="main" class="grid_12">
+        <div id="graph" style="height:500px;width:940px; "></div>
+        <div id="results">
+            <div id="articles">
+                    <p>Click on a point to see a sample of the articles.</p>
+            </div>
 	</div>
-	<div class="left-col grid_9">
-		<div class="box-wrap">
-			<div id="graph" style="height:500px;width:680px; "></div> 
-			<div class="notes">
-                            <!-- QUERY -->
-				<ul>
-				<li>Click on a title in the legend to hide it</li>
-				<li>Click and drag to zoom</li>
-				<li>Click on a point to view articles</li>
-				</ul>
-				<p>These graphs are based on the number of articles available through <a href="http://trove.nla.gov.au">Trove's</a> collection of Australian newspapers. 
-				The totals were harvested using my <a href="https://github.com/wragge/Trove-Tools">TroveTools scraper</a> and the lists of articles are generated using my <a href="http://wraggelabs.appspot.com/api/newspapers/">unoffical Newspapers API</a>.</p>
-				<p>Comments or questions to <a href="http://twitter.com/wragge">@wragge</a></p>
-			<div class="controls">
-			</div>
-			</div>
-		</div>
-	<div class="footer">
-		<p>Another <a href="http://wraggelabs.com">WraggeLabs</a> experiment...</p>
-	</div>
-	</div>
-	<div id="results" class="right-col grid_3">
-		<div class="box-wrap">
-			<h3>Results from Trove</h3>
-			<div id="articles">
-				<p>Click on a point to see a sample of the articles.</p>
-			</div>
-		</div>
-	</div>
-</div>
+        <div class="notes">
+            <!-- QUERY -->
+            <!-- DATE -->
+            <p>Hints:</p>
+                <ul>
+                <li>Click on a title in the legend to hide it</li>
+                <li>Click and drag to zoom</li>
+                <li>Click on a point to view articles</li>
+                </ul>
+                <p>These graphs are based on the number of articles available through <a href="http://trove.nla.gov.au">Trove's</a> collection of Australian newspapers.</p> 
+                <p>The totals were harvested using <a href="http://wraggelabs.com/emporium/trove-tools/newspaper-search-summariser/">QueryPic</a> from my suite of <a href="http://wraggelabs.com/emporium/trove-tools/">Trove Tools</a>.
+                Article details are retrieved using my <a href="http://wraggelabs.com/emporium/trove-tools/an-unofficial-api/">unoffical Newspapers API</a>.</p>
+                <p>Comments or questions to <a href="http://twitter.com/wragge">@wragge</a></p>
+        <div class="controls">
+        </div>
+        </div>
+    </div>
+  </div> <!--! end of #container -->  
+  <footer class="container_12">
+        <p class="grid_12">Another <a href="http://wraggelabs.com">WraggeLabs</a> experiment...</p>
+  </footer>
+
+  <!-- JavaScript at the bottom for fast page loading -->
+
+  <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+  <script>window.jQuery || document.write('<script src="js/libs/jquery-1.6.2.min.js"><\/script>')</script>
+
+  <!-- scripts concatenated and minified via ant build script-->
+  <script src="js/mylibs/highcharts/highcharts.js" type="text/javascript"></script>
+  <script type="text/javascript" src="js/mylibs/showLoading/js/jquery.showLoading.min.js"></script>
+  <script type="text/javascript" src="js/plugins.js"></script>
+  <script type="text/javascript" src="js/script.js"></script>
+  <!-- INSERT DATA HERE -->
+  <!-- end scripts-->
+
+
+  <!-- Prompt IE 6 users to install Chrome Frame. Remove this if you want to support IE 6.
+       chromium.org/developers/how-tos/chrome-frame-getting-started -->
+  <!--[if lt IE 7 ]>
+    <script src="//ajax.googleapis.com/ajax/libs/chrome-frame/1.0.3/CFInstall.min.js"></script>
+    <script>window.attachEvent('onload',function(){CFInstall.check({mode:'overlay'})})</script>
+  <![endif]-->
+  
 </body>
 </html>
