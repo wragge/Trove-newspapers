@@ -68,10 +68,10 @@ function graphData() {
 <script type="text/javascript">
 var chart;
 $(function() {
-    if (graphData.interval == "month") {
+    if (dataSources.sources[0].interval == "month") {
         x_date = "%b %Y";
     } else {
-        x_date = "%b %Y";
+        x_date = "%Y";
     }
     chart = new Highcharts.Chart({
       chart: {
@@ -99,7 +99,7 @@ $(function() {
             },
             labels: {
 		formatter: function() {
-		    return Highcharts.numberFormat(this.value * 100, 0, '', '');
+		    return Highcharts.numberFormat(this.value * 100, 2, '.', '');
 		}
 	    },
           min: 0
@@ -107,10 +107,10 @@ $(function() {
        tooltip: {
           formatter: function() {
                 year = new Date(this.x).getFullYear();
-                if (graphData.interval == "month") {
+                if (dataSources.sources[this.series.index].interval == "month") {
                     month = new Date(this.x).getMonth() + 1;
-                    alert(month);
-                    return '<b>'+ this.series.name +'</b><br/>'+ month +': '+ (this.y * 100).toPrecision(2) + '% (' + dataSources.sources[this.series.index].getTotal(year, month) + ' articles)';
+                    month_name = Highcharts.dateFormat("%b %Y", this.x);
+                    return '<b>'+ this.series.name +'</b><br/>'+ month_name +': '+ (this.y * 100).toPrecision(2) + '% (' + dataSources.sources[this.series.index].getTotal(year, month) + ' articles)';
                 } else {
                     return '<b>'+ this.series.name +'</b><br/>'+ year +': '+ (this.y * 100).toPrecision(2) + '% (' + dataSources.sources[this.series.index].getTotal(year, 0) + ' articles)';
 
