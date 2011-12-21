@@ -67,8 +67,10 @@ $(function() {
     function makeChart(type) {
         if (dataSources.sources[0].interval == "month") {
             x_date = "%b %Y";
+            xLabel = "Month";
         } else {
             x_date = "%Y";
+            xLabel = "Year";
         }
         if (type == "total") {
             yLabel = "Number of articles matching query";
@@ -86,7 +88,7 @@ $(function() {
            },
            xAxis: {
                     title: {
-                            text: 'Year'
+                            text: xLabel
                     },
                     type: 'datetime',
                     labels: {
