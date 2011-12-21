@@ -178,8 +178,8 @@ def main(argv):
     else:
         end = 1954
     # Remove dates from the query
-    query = remove_dates_from_query(query)
-    clean_query = remove_keywords_from_query(query)
+    nodate_query = remove_dates_from_query(query)
+    clean_query = remove_keywords_from_query(nodate_query)
     totals = []
     ratios = []
     data = {}
@@ -189,7 +189,7 @@ def main(argv):
         if options.monthly:
             for month in range(1, 13):
                 print 'Month: %s' % month
-                this_query = '%s&fromyyyy=%s&frommm=%02d&toyyyy=%s&tomm=%02d' % (query, year, month, year, month)
+                this_query = '%s&fromyyyy=%s&frommm=%02d&toyyyy=%s&tomm=%02d' % (nodate_query, year, month, year, month)
                 total = get_total(news, this_query)
                 if total > 0:
                     this_query = '%s&fromyyyy=%s&frommm=%02d&toyyyy=%s&tomm=%02d' % (clean_query, year, month, year, month)
@@ -199,7 +199,7 @@ def main(argv):
                 months[int(month)] = {'total': total, 'ratio': ratio}
             data[int(year)] = months
         else: 
-            this_query = '%s&fromyyyy=%s&toyyyy=%s' % (query, year, year)
+            this_query = '%s&fromyyyy=%s&toyyyy=%s' % (nodate_query, year, year)
             total = get_total(news, this_query)
             # if total results > 0 get the total articles for the year
             if total > 0:
@@ -266,8 +266,14 @@ def create_html_page(pathname, graph_name, var_name, query, series_name):
     with open(html_in, 'r') as html_file:
         html = html_file.read()
         html = html.replace('<!-- INSERT DATA HERE -->', '<!-- INSERT DATA HERE -->\n<script type="text/javascript" src="%s.js"></script>' % var_name)
-        html = html.replace('<!-- QUERY -->', '<!-- QUERY -->\n<p>Original query: <a href="%s">%s</a></p>\n' % (query, series_name))
-        html = html.replace('<!-- DATE -->', '<!-- DATE -->\n<p>Date harvested: %s\n' % datetime.datetime.now().strftime('%d %B %Y'))
+        query_text = re.search(r'<!-- QUERY --><p>(.*)</p><!-- QUERYEND -->', html).group(1)
+        if not query_text:
+            query_text = 'Original query: <a href="%s">%s</a>' % (query, series_name)
+        else:
+            query_text = query_text.replace('query', 'queries')
+            query_text += ', <a href="%s">%s</a>' % (query, series_name)
+        html = re.sub(r'<!-- QUERY --><p>.*</p><!-- QUERYEND -->', '<!-- QUERY --><p>%s</p><!-- QUERYEND -->' % query_text, html)
+        html = html.replace('<!-- DATE -->', '<p>Date harvested: %s\n' % datetime.datetime.now().strftime('%d %B %Y'))
     with open(html_path, 'w') as new_html:
         new_html.write(html);
 
