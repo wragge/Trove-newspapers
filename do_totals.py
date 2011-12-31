@@ -27,7 +27,7 @@ Options:
 
     -n (or --name) [The name of this series -- used for file names and to label 
                     the graph. Default is the search string. ]
-    -p (or --pathname) [The full pathname of the directory/folder for your results.
+    -d (or --directory) [The full pathname of the directory/folder for your results.
                         Default is a 'graphs' sub-directory in the current directory.]
     -g (or --graph) [The name of an existing graph (html file) that you want to add 
                      this series to. Default is the series name.]
