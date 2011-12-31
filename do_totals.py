@@ -159,7 +159,7 @@ def main(argv):
     else:
         pathname = os.path.join(os.getcwd(), 'graphs')
     # Build output filenames including a time stamp
-    var_name = '%s_%s' % (series_name.lower().replace(' ', '_').replace('-', '_'), datetime.datetime.now().strftime('%Y_%m_%d'))
+    var_name = '%s_%s' % (series_name.lower().replace(' ', '_').replace('-', '_').replace(',', '').replace("'", ''), datetime.datetime.now().strftime('%Y_%m_%d'))
     filename = os.path.join(pathname, var_name)
     # If no graph name is set, use the output filename
     if options.graph:
@@ -183,10 +183,10 @@ def main(argv):
     totals = []
     ratios = []
     data = {}
-    months = {}
     for year in range(start, end + 1):
         print 'Year: %s' % year
         if options.monthly:
+            months = {}
             for month in range(1, 13):
                 print 'Month: %s' % month
                 this_query = '%s&fromyyyy=%s&frommm=%02d&toyyyy=%s&tomm=%02d' % (nodate_query, year, month, year, month)
