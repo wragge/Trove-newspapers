@@ -2,10 +2,15 @@ import csv
 import datetime
 import calendar
 import os
+import re
 import json
-import urllib2
+import time
+from urllib2 import Request, urlopen, URLError, HTTPError
+import scrape
 
 from utilities import parse_date, format_date, find_duplicates
+
+HARVEST_DIR = '/Users/tim/Documents/trove/'
 
 def check_csv(file_name, year=None, exclude=[]):
     '''
@@ -65,13 +70,94 @@ def get_issue_url(date, title_id):
     '''
     year, month, day = date.timetuple()[:3]
     url = 'http://trove.nla.gov.au/ndp/del/titlesOverDates/%s/%02d' % (year, month)
-    issues = json.load(urllib2.urlopen(url))
+    issues = json.load(urlopen(url))
+    issue_id = None
+    issue_url = None
     for issue in issues:
         if issue['t'] == title_id and int(issue['p']) == day:
             issue_id = issue['iss']
-    return 'http://trove.nla.gov.au/ndp/del/issue/%s' % issue_id
-        
+            break
+    if issue_id:
+        issue_url = 'http://trove.nla.gov.au/ndp/del/issue/%s' % issue_id
+    else:
+        raise IssueError
+    return issue_url
+
+def get_front_page_url(date, title_id):
+    '''
+    Gets the url of the front page given a date and a title.
+    '''
+    issue_url = get_issue_url(date, title_id)
+    print issue_url
+    response = get_url(issue_url)
+    return response.geturl()
+
+def get_front_page_id(date, title_id):
+    '''
+    Gets the id of the front page given a date and a title.
+    '''
+    page_url = get_front_page_url(date, title_id)
+    print page_url
+    id = re.match(r'http:\/\/trove\.nla\.gov\.au\/ndp\/del\/page\/(\d+)', page_url).group(1)
+    return id
+
+def get_front_page_image(date, title_id):
+    page_id = get_front_page_id(date, title_id)
+    image_url = '%s%s' % (scrape.IMAGE_PATH, page_id)
+    response = get_url(image_url)
+    return response.read()
+    
+def harvest_front_pages(start_year, end_year, title_id):
+    directory = '%s%s' % (HARVEST_DIR, title_id)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    start_date = datetime.date(start_year, 1, 1)
+    end_date = datetime.date(end_year, 12, 31)
+    one_day = datetime.timedelta(days=1)
+    this_day = start_date
+    # Loop through each day in specified period 
+    while this_day <= end_date:
+        print 'Checking date: %s' % this_day.isoformat()
+        filename = '%s/%s.jpg' % (directory, this_day.isoformat())
+        if not os.path.exists(filename):
+            try:
+                image = get_front_page_image(this_day, title_id)
+            except IssueError:
+                print 'No such issue.'
+            else:
+                print 'Saving: %s' % filename
+                with open(filename, 'wb') as f:
+                    f.write(image)            
+        this_day += one_day
+        time.sleep(1)
+
+def get_url(url):
+    '''
+    Retrieve page.
+    '''
+    user_agent = 'Mozilla/5.0 (X11; Linux i686; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
+    headers = { 'User-Agent' : user_agent }
+    req = Request(url, None, headers)
+    try:
+        response = urlopen(req)
+    except HTTPError, error:
+        if error.code >= 500:
+            raise ServerError(error)
+        else:
+            raise
+    except URLError, error:
+        raise
+    else:
+        return response
+
+class IssueError(Exception):
+    pass
+
+class ServerError(Exception):
+    pass
         
 if __name__ == "__main__":
-    check_csv('/Users/tim/Documents/NMA/1913/smh-editorials.csv', year=1913, exclude=[6])
-    #print get_issue_url(datetime.date(1913, 1, 2), '35')
+    #check_csv('/Users/tim/Documents/NMA/1913/smh-editorials.csv', year=1913, exclude=[6])
+    
+    #print get_front_page_id(datetime.date(1913, 1, 2), '35')
+    harvest_front_pages(1920, 1920, '35')
