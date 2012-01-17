@@ -8,11 +8,13 @@ import time
 from urllib2 import Request, urlopen, URLError, HTTPError
 import scrape
 from BeautifulSoup import BeautifulSoup
+import utilities
 
-from utilities import parse_date, format_date, find_duplicates
+from utilities import parse_date, format_date, find_duplicates, get_titles
 
 HARVEST_DIR = '/Users/tim/Documents/trove/'
 TROVE_URL = 'http://trove.nla.gov.au'
+YAHOO_ID = 'JAp9z33V34HzR4rvRaHUNsRuEadGdaoQlRWYwsObAM1YquTZ.m92jjrhx.X0mOro67op'
 
 def check_csv(file_name, year=None, exclude=[]):
     '''
@@ -65,200 +67,6 @@ def check_csv(file_name, year=None, exclude=[]):
             csv_out.writerow({'issue_date': format_date(missing)})
         results.write('</table>\n')
         results.write('</body>\n</html>')
-            
-def get_issue_url(date, title_id):
-    '''
-    Gets the issue url given a title and date.
-    '''
-    year, month, day = date.timetuple()[:3]
-    url = 'http://trove.nla.gov.au/ndp/del/titlesOverDates/%s/%02d' % (year, month)
-    
-    issues = json.load(urlopen(url))
-    issue_id = None
-    issue_url = None
-    for issue in issues:
-        if issue['t'] == title_id and int(issue['p']) == day:
-            issue_id = issue['iss']
-            break
-    if issue_id:
-        issue_url = 'http://trove.nla.gov.au/ndp/del/issue/%s' % issue_id
-    else:
-        raise IssueError
-    return issue_url
-
-def get_front_page_url(date, title_id):
-    '''
-    Gets the url of the front page given a date and a title.
-    '''
-    issue_url = get_issue_url(date, title_id)
-    print issue_url
-    response = get_url(issue_url)
-    return response.geturl()
-
-def get_front_page_id(date, title_id):
-    '''
-    Gets the id of the front page given a date and a title.
-    '''
-    page_url = get_front_page_url(date, title_id)
-    print page_url
-    id = re.match(r'http:\/\/trove\.nla\.gov\.au\/ndp\/del\/page\/(\d+)', page_url).group(1)
-    return id
-
-def get_front_page_image(date, title_id):
-    page_id = get_front_page_id(date, title_id)
-    image_url = '%s%s' % (scrape.IMAGE_PATH, page_id)
-    response = get_url(image_url)
-    return response.read()
-    
-def get_front_page_thumb(date, title_id, page_id=None):
-    if not page_id:
-        page_id = get_front_page_id(date, title_id)
-    image_url = '%s%s/thumb' % (scrape.IMAGE_PATH, page_id)
-    response = get_url(image_url)
-    return response.read()
-    
-def harvest_front_pages_text(start_year, end_year, title_id, start_month=None):
-    directory = '%s%s/text/' % (HARVEST_DIR, title_id)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    if start_month:
-        start_date = datetime.date(start_year, start_month, 1)
-    else:
-        start_date = datetime.date(start_year, 1, 1)
-    end_date = datetime.date(end_year, 12, 31)
-    one_day = datetime.timedelta(days=1)
-    this_day = start_date
-    # Loop through each day in specified period 
-    while this_day <= end_date:
-        print 'Checking date: %s' % this_day.isoformat()
-        filename = '%s%s-page1.txt' % (directory, this_day.isoformat())
-        if not os.path.exists(filename):
-            try:
-                page_url = get_front_page_url(this_day, title_id)
-            except IssueError:
-                print "No Issue for this date"
-            else:
-                response = get_url(page_url)
-                page = BeautifulSoup(response.read())
-                articles = page.find('ul', 'articles').findAll('li')
-                page_text = ''
-                for article in articles:
-                    article_url = TROVE_URL + article.h4.a['href']
-                    response = get_url(article_url)
-                    article_page = BeautifulSoup(response.read())
-                    paras = article_page.find('div', 'ocr-text').findAll('p')
-                    text = ''
-                    for para in paras:
-                        text += (' ').join([line.string for line in 
-                                           para.findAll('span') if line.string]).strip()
-                    text = text.replace('&nbsp;', ' ')
-                    text = text.replace('  ', ' ')
-                    page_text += text.encode('utf-8')
-                print 'Saving: %s' % filename
-                with open(filename, 'wb') as f:
-                    f.write(page_text)            
-        this_day += one_day
-        time.sleep(1) 
-    
-def harvest_front_pages(start_year, end_year, title_id):
-    directory = '%s%s' % (HARVEST_DIR, title_id)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    start_date = datetime.date(start_year, 1, 1)
-    end_date = datetime.date(end_year, 12, 31)
-    one_day = datetime.timedelta(days=1)
-    this_day = start_date
-    # Loop through each day in specified period 
-    while this_day <= end_date:
-        print 'Checking date: %s' % this_day.isoformat()
-        filename = '%s/%s.jpg' % (directory, this_day.isoformat())
-        if not os.path.exists(filename):
-            try:
-                image = get_front_page_image(this_day, title_id)
-            except IssueError:
-                print 'No such issue.'
-            else:
-                print 'Saving: %s' % filename
-                with open(filename, 'wb') as f:
-                    f.write(image)            
-        this_day += one_day
-        time.sleep(1)
-
-def harvest_front_pages_thumbs(start_year, end_year, title_id):
-    directory = '%s%s/thumbs' % (HARVEST_DIR, title_id)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    start_date = datetime.date(start_year, 1, 1)
-    end_date = datetime.date(end_year, 12, 31)
-    one_day = datetime.timedelta(days=1)
-    this_day = start_date
-    # Loop through each day in specified period 
-    while this_day <= end_date:
-        print 'Checking date: %s' % this_day.isoformat()
-        try:
-            page_id = get_front_page_id(this_day, title_id)
-        except IssueError:
-            print 'No such issue.'
-        else:
-            filename = '%s/%s-%s.jpg' % (directory, this_day.isoformat(), page_id)
-            if not os.path.exists(filename):
-                image = get_front_page_thumb(this_day, title_id, page_id)
-                print 'Saving: %s' % filename
-                with open(filename, 'wb') as f:
-                    f.write(image)            
-        this_day += one_day
-        time.sleep(1)
-
-def sample_front_pages():
-    #Get list of titles
-    url = "http://trove.nla.gov.au/ndp/del/titleList"
-    titles = json.loads(get_url(url).read())
-    for title in titles:
-        print 'Processing: %s' % title['name']
-        directory = '%ssamples/%s' % (HARVEST_DIR, title['id'])
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        title_url = 'http://trove.nla.gov.au/ndp/del/yearsAndMonthsForTitle/%s' % title['id']
-        holdings = json.loads(get_url(title_url).read())
-        for month in holdings:
-            month_url = 'http://trove.nla.gov.au/ndp/del/titlesOverDates/%s/%s' % (month['y'], month['m'])
-            issues = json.loads(get_url(month_url).read())
-            for issue in issues:
-                if issue['t'] == title['id']:
-                    first_issue = issue
-                    break
-            first_issue_id = first_issue['iss']
-            first_issue_date = datetime.date(int(month['y']), int(month['m']), int(first_issue['p']))
-            print 'Getting cover: %s' % first_issue_date.isoformat()
-            page_id = get_front_page_id(first_issue_date, title['id'])
-            filename = '%s/%s-%s.jpg' % (directory, first_issue_date.isoformat(), page_id)
-            if not os.path.exists(filename):
-                image = get_front_page_thumb(first_issue_date, title['id'], page_id)
-                print 'Saving: %s' % filename
-                with open(filename, 'wb') as f:
-                    f.write(image) 
-
-def get_url(url):
-    '''
-    Retrieve page.
-    '''
-    user_agent = 'Mozilla/5.0 (X11; Linux i686; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
-    headers = { 'User-Agent' : user_agent }
-    req = Request(url, None, headers)
-    try:
-        response = urlopen(req)
-    except HTTPError, error:
-        if error.code >= 500:
-            raise ServerError(error)
-        else:
-            raise
-    except URLError, error:
-        raise
-    else:
-        return response
-
-class IssueError(Exception):
-    pass
 
 class ServerError(Exception):
     pass
@@ -268,4 +76,5 @@ if __name__ == "__main__":
     
     #print get_front_page_id(datetime.date(1913, 1, 2), '35')
     #harvest_front_pages_text(1920, 1920, '35')
-    sample_front_pages()
+    #sample_front_pages()
+    get_issues_by_titles()
