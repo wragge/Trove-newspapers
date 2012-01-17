@@ -10,13 +10,17 @@ try:
 except ImportError:
     import simplejson as json 
 import pickle
+import urllib
 from urllib2 import Request, urlopen, URLError, HTTPError
 import time
 import os
 import calendar
 import datetime
 
-def get_titles():
+YAHOO_ID = 'JAp9z33V34HzR4rvRaHUNsRuEadGdaoQlRWYwsObAM1YquTZ.m92jjrhx.X0mOro67op'
+YAHOO_URL = 'http://wherein.yahooapis.com/v1/document'
+
+def get_titles(locate=False):
     '''
     Retrieves a list of current newspaper titles from Trove.
     Retrieves current holdings details about each title.
@@ -25,16 +29,35 @@ def get_titles():
     name, id, state, start_year, start_month, end_year, end_month.
     '''
     url = "http://trove.nla.gov.au/ndp/del/titleList"
-    title_list = json.loads(get_url(url).read())
+    title_list = json.load(get_url(url))
     titles = []
     for title in title_list:
         name = title['name']
-        print name
+        print unicode(name).encode('utf-8')
         try:
-            state = re.search(r'\(([a-zA-Z ]+, )*?(National|ACT|NSW|NT|Qld|QLD|SA|Tas|TAS|Vic|VIC|WA)\.*?', 
-                              name).group(2).lower()
+            place, state = re.search(r'\(([a-zA-Z \.]+, )*?(National|ACT|NSW|NT|Qld|QLD|SA|Tas|TAS|Vic|VIC|WA)\.*?', 
+                              name).groups()
         except AttributeError:
+            place = None
             state = 'national'
+        print 'Place: %s' % place
+        print 'State: %s' % state
+        if locate and place is None and state is not 'national':
+            values = {'appid': YAHOO_ID, 'documentType': 'text/plain', 'documentContent': unicode(name).encode('utf-8') + ' Australia', 'outputType': 'json'}
+            data = urllib.urlencode(values)
+            req = Request(YAHOO_URL, data)
+            response = urlopen(req)
+            place_data = json.loads(response.read())
+            print place_data
+            if isinstance(place_data['document']['localScopes'], list):
+                for scope in place_data['document']['localScopes']:
+                    print scope['localScope']['name']
+            else:
+                print place_data['document']['localScopes']['localScope']['name']
+            try:
+                print place_data['document']['placeDetails']['place']['name']
+            except KeyError:
+                print "No place"        
         url = 'http://trove.nla.gov.au/ndp/del/yearsAndMonthsForTitle/%s' % title['id']
         holdings = json.loads(get_url(url).read())
         #Only save those who have holdings online
@@ -62,7 +85,7 @@ def get_url(url, try_num=0):
         except HTTPError, error:
             if error.code >= 500:
                 time.sleep(10)
-                get_url(url, try_num=try_num+1)
+                get_url(url, try_num =+ 1)
             else:
                 print 'The server couldn\'t fulfill the request.'
                 print 'Error code: ', error.code
@@ -129,7 +152,7 @@ def format_date(date):
 
 def find_duplicates(list):
     '''
-    Check a list for suplicate values.
+    Check a list for duplicate values.
     Returns a list of the duplicates.
     '''
     seen = set()
@@ -141,9 +164,10 @@ def find_duplicates(list):
     return duplicates
     
 if __name__ == "__main__":
+    get_titles()
     #create_date_ranges()
     #create_titles_pickle()
     #save_titles(format='pickle', bykey='id')
     #save_titles(format='pickle', bykey='state')
     #save_titles()
-    print parse_date('Friday 27 October 1911')
+    #print parse_date('Friday 27 October 1911')
