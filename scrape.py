@@ -57,6 +57,7 @@ from utilities import open_titles
 
 SEARCH_PATH = "http://trove.nla.gov.au/newspaper/result?"
 IMAGE_PATH = "http://trove.nla.gov.au/ndp/imageservice/nla.news-page"
+TROVE_URL = 'http://trove.nla.gov.au'
 STATES = ['nsw', 'act', 'nt', 'qld', 'sa', 'tas', 'vic', 'wa', 'national']
 SORT_OPTIONS = ['', 'dateAsc', 'dateDesc']
 
@@ -450,6 +451,26 @@ class TroveNewspapersClient:
         article['text'] = text.encode('utf-8')
         return article
     
+    def extract_page_articles(self, page_url):
+        '''
+        Extract details of all articles on a page.
+        '''
+        self.query = page_url
+        try:
+            self.try_url()
+        except Exception:
+            raise
+        page = BeautifulSoup(self.response)
+        articles = page.find('ul', 'articles').findAll('li')
+        for article in articles:
+            self.query = TROVE_URL + article.h4.a['href']
+            try:
+                self.try_url()
+            except Exception:
+                raise
+            else:
+                self.results.append(self.extract_article_details())
+    
     def mask_dates(self, year):
         '''
         Hide dates in headlines and summaries.
@@ -525,7 +546,8 @@ if __name__ == "__main__":
     #np.get_random_articles(year="1880", kw_all="kelly", kw_any="ireland irish")
     #np.get_random_articles(year="1880", filters=['title', 'month'])
     #np.get_random_articles(year="1880", titles=['35'])
-    np.get_article('61658218')
+    #np.get_article('61658218')
+    np.extract_page_articles('http://nla.gov.au/nla.news-page6571434')
     print np.query
     print np.total_results
     print np.results
