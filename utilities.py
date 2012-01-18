@@ -150,6 +150,17 @@ def format_date(date):
     date_tuple = date.timetuple()
     return '%s %s %s %s' % (calendar.day_name[date_tuple[6]], date_tuple[2], calendar.month_name[date_tuple[1]], date_tuple[0])
 
+def convert_iso_to_datetime(isodate):
+    '''
+    Take an ISO date string YYYY-MM-DD and return a datetime.date object.
+    
+    >>> convert_iso_to_datetime('1925-01-01')
+    datetime.date(1925, 1, 1)
+    '''
+    year, month, day = (int(num) for num in isodate.split('-'))
+    date = datetime.date(year, month, day)
+    return date
+
 def find_duplicates(list):
     '''
     Check a list for duplicate values.
@@ -164,10 +175,5 @@ def find_duplicates(list):
     return duplicates
     
 if __name__ == "__main__":
-    get_titles()
-    #create_date_ranges()
-    #create_titles_pickle()
-    #save_titles(format='pickle', bykey='id')
-    #save_titles(format='pickle', bykey='state')
-    #save_titles()
-    #print parse_date('Friday 27 October 1911')
+    import doctest
+    doctest.testmod()

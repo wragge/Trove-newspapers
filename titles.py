@@ -5,10 +5,10 @@ import urllib
 from urllib2 import Request, urlopen, URLError, HTTPError
 
 from utilities import get_url
+from keys import YAHOO_ID
 
 TITLES_URL = 'http://trove.nla.gov.au/ndp/del/titleList'
 TITLE_HOLDINGS_URL = 'http://trove.nla.gov.au/ndp/del/yearsAndMonthsForTitle/'
-YAHOO_ID = 'JAp9z33V34HzR4rvRaHUNsRuEadGdaoQlRWYwsObAM1YquTZ.m92jjrhx.X0mOro67op'
 YAHOO_URL = 'http://wherein.yahooapis.com/v1/document'
 
 def get_titles(locate=False):

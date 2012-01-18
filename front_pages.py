@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 import datetime
-import calendar
 import os
 import re
 import json
 import time
-from urllib2 import Request, urlopen, URLError, HTTPError
-import scrape
 from BeautifulSoup import BeautifulSoup
 
-from utilities import get_url
+import scrape
+from utilities import get_url, convert_iso_to_datetime
 from issues import get_issue_url, IssueError, MONTH_ISSUES_URL
 from titles import TITLES_URL, TITLE_HOLDINGS_URL
 
@@ -23,125 +21,98 @@ def get_front_page_url(date, title_id):
     >>> get_front_page_url(datetime.date(1925,1,1), '35')
     'http://trove.nla.gov.au/ndp/del/page/1223077'
     
+    >>> get_front_page_url('1925-01-01', '35')
+    'http://trove.nla.gov.au/ndp/del/page/1223077'
+    
     '''
     issue_url = get_issue_url(date, title_id)
     response = get_url(issue_url)
     return response.geturl()
 
-def get_front_page_id(date, title_id):
+def get_front_page_id(date, title_id, page_url=None):
     '''
     Gets the id of the front page given a date and a title.
     
     >>> get_front_page_id(datetime.date(1925,1,1), '35')
     '1223077'
     
+    >>> get_front_page_id('1925-01-01', '35')
+    '1223077'
     '''
-    page_url = get_front_page_url(date, title_id)
+    if not page_url:
+        page_url = get_front_page_url(date, title_id)
     id = re.match(r'http:\/\/trove\.nla\.gov\.au\/ndp\/del\/page\/(\d+)', page_url).group(1)
     return id
 
-def get_front_page_image(date, title_id, page_id=None):
+def get_front_page_image(date, title_id, page_id=None, size='small'):
     '''
-    Retrieves jpg of front page. 
-    '''
-    if not page_id:
-        page_id = get_front_page_id(date, title_id)
-    image_url = '%s%s' % (scrape.IMAGE_PATH, page_id)
-    response = get_url(image_url)
-    return response.read()
-    
-def get_front_page_thumb(date, title_id, page_id=None):
-    '''
-    Retrieves teeny-weeny jpg of front page.
+    Retrieves jpg of front page.
+    Small images are about 300px wide.
+    Thumbs are 150px high.  
     '''
     if not page_id:
         page_id = get_front_page_id(date, title_id)
-    image_url = '%s%s/thumb' % (scrape.IMAGE_PATH, page_id)
+    if size == 'small':
+        image_url = '%s%s' % (scrape.IMAGE_PATH, page_id)
+    elif size == 'thumb':
+        image_url = '%s%s/thumb' % (scrape.IMAGE_PATH, page_id)
     response = get_url(image_url)
     return response.read()
     
-def harvest_front_pages_text(start_year, end_year, title_id, start_month=None):
+def harvest_front_pages_text(start, end, title_id):
     '''
     Harvest and concatenate text content of all articles on front page.
+    start and end are dates in ISO YYYY-MM-DD format, eg: '1857-02-04'
+    
+    >>> harvest_front_pages_text('1902-01-01','1902-01-01', '34')
+    Checking date: 1902-01-01
+    Saving: 1902-01-01-905929.txt
     '''
     directory = '%s%s/text/' % (HARVEST_DIR, title_id)
     if not os.path.exists(directory):
         os.makedirs(directory)
-    if start_month:
-        start_date = datetime.date(start_year, start_month, 1)
-    else:
-        start_date = datetime.date(start_year, 1, 1)
-    end_date = datetime.date(end_year, 12, 31)
+    start_date = convert_iso_to_datetime(start)
+    end_date = convert_iso_to_datetime(end)
     one_day = datetime.timedelta(days=1)
     this_day = start_date
     # Loop through each day in specified period 
     while this_day <= end_date:
         print 'Checking date: %s' % this_day.isoformat()
-        filename = '%s%s-page1.txt' % (directory, this_day.isoformat())
-        if not os.path.exists(filename):
-            try:
-                page_url = get_front_page_url(this_day, title_id)
-            except IssueError:
-                print "No Issue for this date"
-            else:
-                response = get_url(page_url)
-                page = BeautifulSoup(response.read())
-                articles = page.find('ul', 'articles').findAll('li')
+        try:
+            page_url = get_front_page_url(this_day, title_id)
+        except IssueError:
+            print 'No such issue.'
+        else:
+            page_id = get_front_page_id(None, None, page_url)
+            filename = '%s%s-%s.txt' % (directory, this_day.isoformat(), page_id)
+            if not os.path.exists(filename):
+                np = scrape.TroveNewspapersClient()
+                np.extract_page_articles(page_url)
+                articles = np.results
                 page_text = ''
                 for article in articles:
-                    article_url = TROVE_URL + article.h4.a['href']
-                    response = get_url(article_url)
-                    article_page = BeautifulSoup(response.read())
-                    paras = article_page.find('div', 'ocr-text').findAll('p')
-                    text = ''
-                    for para in paras:
-                        text += (' ').join([line.string for line in 
-                                           para.findAll('span') if line.string]).strip()
-                    text = text.replace('&nbsp;', ' ')
-                    text = text.replace('  ', ' ')
-                    page_text += text.encode('utf-8')
-                print 'Saving: %s' % filename
+                    page_text += article['text']
+                print 'Saving: %s' % os.path.basename(filename)
                 with open(filename, 'wb') as f:
                     f.write(page_text)            
         this_day += one_day
         time.sleep(1) 
     
-def harvest_front_pages(start_year, end_year, title_id):
+def harvest_front_pages(start, end, title_id, size='small'):
     '''
     Harvest images of front pages of the given title over the specified period.
+    start and end are dates in ISO YYYY-MM-DD format, eg: '1857-02-04'
+    
+    >>> harvest_front_pages('1902-01-01','1902-01-01', '34')
+    Checking date: 1902-01-01
+    Saving: 1902-01-01-905929-small.jpg
+    
     '''
     directory = '%s%s' % (HARVEST_DIR, title_id)
     if not os.path.exists(directory):
         os.makedirs(directory)
-    start_date = datetime.date(start_year, 1, 1)
-    end_date = datetime.date(end_year, 12, 31)
-    one_day = datetime.timedelta(days=1)
-    this_day = start_date
-    # Loop through each day in specified period 
-    while this_day <= end_date:
-        print 'Checking date: %s' % this_day.isoformat()
-        filename = '%s/%s.jpg' % (directory, this_day.isoformat())
-        if not os.path.exists(filename):
-            try:
-                image = get_front_page_image(this_day, title_id)
-            except IssueError:
-                print 'No such issue.'
-            else:
-                print 'Saving: %s' % filename
-                with open(filename, 'wb') as f:
-                    f.write(image)            
-        this_day += one_day
-        time.sleep(1)
-
-def harvest_front_pages_thumbs(start_year, end_year, title_id):
-    '''
-    Harvest thumbs of front pages of the given title over the specified period.
-    '''
-    directory = '%s%s/thumbs' % (HARVEST_DIR, title_id)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    start_date = datetime.date(start_year, 1, 1)
-    end_date = datetime.date(end_year, 12, 31)
+    start_date = convert_iso_to_datetime(start)
+    end_date = convert_iso_to_datetime(end)
     one_day = datetime.timedelta(days=1)
     this_day = start_date
     # Loop through each day in specified period 
@@ -152,18 +123,18 @@ def harvest_front_pages_thumbs(start_year, end_year, title_id):
         except IssueError:
             print 'No such issue.'
         else:
-            filename = '%s/%s-%s.jpg' % (directory, this_day.isoformat(), page_id)
+            filename = '%s/%s-%s-%s.jpg' % (directory, this_day.isoformat(), page_id, size)
             if not os.path.exists(filename):
-                image = get_front_page_thumb(this_day, title_id, page_id)
-                print 'Saving: %s' % filename
+                image = get_front_page_image(None, None, page_id, size=size)
+                print 'Saving: %s' % os.path.basename(filename)
                 with open(filename, 'wb') as f:
                     f.write(image)            
         this_day += one_day
         time.sleep(1)
 
-def sample_front_pages():
+def sample_front_pages(size='thumb'):
     '''
-    Retrieve a front page thumbnail for every title at monthly intervals.
+    Retrieve a front page image for every title at monthly intervals.
     '''
     titles = json.load(get_url(TITLES_URL))
     for title in titles:
@@ -182,11 +153,11 @@ def sample_front_pages():
                     break
             first_issue_id = first_issue['iss']
             first_issue_date = datetime.date(int(month['y']), int(month['m']), int(first_issue['p']))
-            print 'Getting cover: %s' % first_issue_date.isoformat()
+            print 'Checking date: %s' % first_issue_date.isoformat()
             page_id = get_front_page_id(first_issue_date, title['id'])
-            filename = '%s/%s-%s.jpg' % (directory, first_issue_date.isoformat(), page_id)
+            filename = '%s/%s-%s-%s.jpg' % (directory, first_issue_date.isoformat(), page_id, size)
             if not os.path.exists(filename):
-                image = get_front_page_thumb(None, None, page_id)
+                image = get_front_page_image(None, None, page_id, size=size)
                 print 'Saving: %s' % filename
                 with open(filename, 'wb') as f:
                     f.write(image) 

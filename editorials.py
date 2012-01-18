@@ -3,13 +3,8 @@ import datetime
 import calendar
 import os
 import re
-import json
-import time
-from urllib2 import Request, urlopen, URLError, HTTPError
-import scrape
-from BeautifulSoup import BeautifulSoup
-import utilities
 
+import utilities
 from utilities import parse_date, format_date, find_duplicates, get_titles
 
 HARVEST_DIR = '/Users/tim/Documents/trove/'
@@ -73,8 +68,3 @@ class ServerError(Exception):
         
 if __name__ == "__main__":
     #check_csv('/Users/tim/Documents/NMA/1913/smh-editorials.csv', year=1913, exclude=[6])
-    
-    #print get_front_page_id(datetime.date(1913, 1, 2), '35')
-    #harvest_front_pages_text(1920, 1920, '35')
-    #sample_front_pages()
-    get_issues_by_titles()

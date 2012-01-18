@@ -18,7 +18,10 @@ def get_issue_url(date, title_id):
     u'http://trove.nla.gov.au/ndp/del/issue/120168'
     
     '''
-    year, month, day = date.timetuple()[:3]
+    if type(date) is datetime.date:
+        year, month, day = date.timetuple()[:3]
+    else:
+        year, month, day = (int(num) for num in date.split('-'))
     url = '%s%s/%02d' % (MONTH_ISSUES_URL, year, month)
     issues = json.load(get_url(url))
     issue_id = None
