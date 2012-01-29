@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import json
 import datetime
+from BeautifulSoup import BeautifulSoup
 
 import utilities
-from utilities import get_url
+from utilities import get_url, parse_date
 from titles import TITLES_URL
 
 TITLE_HOLDINGS_URL = 'http://trove.nla.gov.au/ndp/del/yearsAndMonthsForTitle/'
@@ -66,6 +67,29 @@ def get_issues_by_titles(titles=None):
             print '%s: %s issues' % (title['name'], total)
     return issue_totals
 
+def get_title_issues(title, year):
+    title_url = '%s%s' % (TITLE_HOLDINGS_URL, title)
+    holdings = json.load(get_url(title_url))
+    issues = []
+    for month in holdings:
+        if month['y'] == str(year): 
+            month_url = '%s%s/%s' % (MONTH_ISSUES_URL, month['y'], month['m'])
+            print month_url
+            month_issues = json.load(get_url(month_url))
+            for issue in month_issues:
+                if issue['t'] == str(title):
+                    issue_date = get_issue_date(issue['iss'])
+                    issues.append({'id': issue['iss'], 'date': issue_date.isoformat()})
+    return issues
+                    
+def get_issue_date(issue_id):
+    issue_url = '%s%s' % (ISSUE_URL, issue_id)
+    response = get_url(issue_url)
+    page = BeautifulSoup(response.read())
+    issue_date = page.find('div', 'issue').strong.string
+    issue_datetime = parse_date(issue_date)
+    return issue_datetime
+                    
 class IssueError(Exception):
     pass
 
