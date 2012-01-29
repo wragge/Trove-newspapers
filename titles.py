@@ -71,9 +71,7 @@ def get_titles_by_year(year):
     Create a list of newspaper titles with issues published in the specified year.
     '''
     all_titles = get_titles()
-    titles = [title
-              for title in all_titles if (int(title['start_year']) <= year and int(title['end_year']) >= year)]
+    titles = [title for title in all_titles if (int(title['start_year']) <= year and int(title['end_year']) >= year)]
     return titles
-        
-    
+
     
