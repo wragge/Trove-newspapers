@@ -87,7 +87,7 @@ class TroveNewspapersHarvester:
                                        fieldnames=['id', 'title', 'url', 
                                                    'newspaper_title', 'newspaper_details', 
                                                    'newspaper_id', 'issue_date', 'page', 
-                                                   'page_url','corrections','ftext'], 
+                                                   'page_url','corrections','ftext','text'], 
                                                    dialect=csv.excel)
         print 'File created: %s' % filename
         # the path.exists check is necessary for Python 2.5
