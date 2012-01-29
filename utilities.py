@@ -16,6 +16,7 @@ import time
 import os
 import calendar
 import datetime
+import string
 
 YAHOO_ID = 'JAp9z33V34HzR4rvRaHUNsRuEadGdaoQlRWYwsObAM1YquTZ.m92jjrhx.X0mOro67op'
 YAHOO_URL = 'http://wherein.yahooapis.com/v1/document'
@@ -173,6 +174,15 @@ def find_duplicates(list):
             duplicates.append(item)
         seen.add(item)
     return duplicates
+
+def clean_filename(filename):
+    '''
+    Removes funny characters from strings so they can be used as filenames.
+    '''
+    valid_chars = '-_()%s%s' % (string.ascii_letters, string.digits)
+    filename = filename.replace(' ', '-')
+    filename = ''.join(c for c in filename if c in valid_chars)
+    return filenimpoame
     
 if __name__ == "__main__":
     import doctest
