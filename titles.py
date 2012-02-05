@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import json
 import re
+import os
+import shutil
 import urllib
 from urllib2 import Request, urlopen, URLError, HTTPError
 
@@ -39,6 +41,7 @@ def get_titles(locate=False):
             titles.append({'name': name,
                                'id': title['id'],
                                'state': state,
+                               'place': place,
                                'start_year': holdings[0]['y'],
                                'start_month': holdings[0]['m'],
                                'end_year': holdings[-1]['y'],
@@ -46,6 +49,42 @@ def get_titles(locate=False):
                                })
     return titles
 
+def sort_directories_by_state(path):
+    titles = { title['id']: title for title in get_titles() }
+    dirs = [ dir for dir in os.listdir(path) if os.path.isdir(os.path.join(path, dir)) and dir != 'states' ]
+    state_dir = os.path.join(path, 'states')
+    if not os.path.exists(state_dir):
+        os.makedirs(state_dir)
+    for dir in dirs:
+        id = re.match(r'(\d+)\-', dir).group(1)
+        state = titles[id]['state']
+        this_dir = os.path.join(state_dir, state.lower())
+        if not os.path.exists(this_dir):
+            os.makedirs(this_dir)
+        shutil.copytree(os.path.join(path, dir), os.path.join(this_dir, dir))
+
+def show_metro():
+    cities = ['Melbourne', 'Sydney', 'Brisbane', 'Perth', 'Adelaide', 'Hobart']
+    titles = get_titles()
+    metro = {}
+    for title in titles:
+        if title['place'] in cities:
+            metro[title['id']] = title
+        elif look_for_city(title['name'], cities):
+            metro[title['id']] = title
+    print metro
+    for paper in metro:
+        print paper
+        print paper['name']
+         
+def look_for_city(name, cities):
+    found = False
+    for city in cities:
+        if city in name:
+            found = True
+            break
+    return found
+    
 def locate_title(title):
     '''
     Attempt to extract placenames from newspaper titles.
