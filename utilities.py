@@ -182,7 +182,7 @@ def clean_filename(filename):
     valid_chars = '-_()%s%s' % (string.ascii_letters, string.digits)
     filename = filename.replace(' ', '-')
     filename = ''.join(c for c in filename if c in valid_chars)
-    return filenimpoame
+    return filename
     
 if __name__ == "__main__":
     import doctest
