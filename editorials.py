@@ -1,3 +1,4 @@
+from __future__ import division
 import csv
 import datetime
 import calendar
@@ -5,6 +6,9 @@ import os
 import re
 from urllib import quote_plus
 import json
+import nltk
+from nltk.corpus import wordnet as wn
+import string
 
 import utilities
 from utilities import parse_date, format_date, find_duplicates, get_titles, clean_filename
@@ -193,11 +197,18 @@ def harvest_editorials(year, titles=None):
         filename = '%s/%s-%s.csv' % (NMA_FOLDER, title['id'], clean_name)
         if not os.path.exists(filename):
             # construct url
-            url = quote_plus('http://trove.nla.gov.au/newspaper/result?q="%s"&l-textSearchScope=headings+only|scope:headings&fromyyyy=%s&toyyyy=%s&l-title=|%s&l-category=Article|category:Article' % (query_str, year, year, title['id']), '://?=&-,\'')
+            url = quote_plus('http://trove.nla.gov.au/newspaper/result?q="%s" NOT (fulltext:letter OR fulltext:editor)&l-textSearchScope=headings+only|scope:headings&fromyyyy=%s&toyyyy=%s&l-title=|%s&l-category=Article|category:Article' % (query_str, year, year, title['id']), '://?=&-,\'')
             print url
             # harvest results
             harvester = TroveNewspapersHarvester()
-            harvester.harvest(url, filename=filename)
+            harvester.harvest(url, filename=filename, text=True)
+
+def create_corpus(path):
+    '''
+    Create a corpus from a directory full of text files.
+    '''
+    articles = PlaintextCorpusReader(path, '.*\.txt')
+    return articles
 
 class ServerError(Exception):
     pass
