@@ -7,6 +7,39 @@ from nltk.corpus import wordnet as wn
 import string
 
 PUNCTUATION = [',','.',';',':','(',')','?','!','"','\'']
+CORRECTIONS = [
+                ('Hie', 'the'),
+                ('tho', 'the'),
+                ('tbo', 'the'),
+                ('foi', 'for'),
+                ('fiom', 'from'),
+                ('bo', 'be'),
+                ('ho', 'he'),
+                ('Ho', 'he'),
+                ('Tho', 'The'),
+                ('thc', 'the'),
+                ('Thc', 'Thc'),
+                ('wo', 'we'),
+                ('aro', 'are'),
+                ('ot', 'of'),
+                ('moro', 'more'),
+                ('havo', 'have'),
+                ('ns', 'as'),
+                ('lo', 'to'),
+                ('und', 'and'),
+                ('ono', 'one'),
+                ('th', 'the'),
+                ('Th', 'The'),
+                ('ls', 'is'),
+                ('cf', 'of'),
+                ('ol', 'of'),
+                ('tlie', 'the'),
+                ('Tlie', 'The')
+                ]
+
+# Words that Voyant doesn't filter out.
+# TO-DO: Need to work out why words like during and coming are being split
+MY_STOPWORDS = ['Mr', 'Mrs', 'Miss', 'ing', 'ment', 'ed', 'ii', 'II', 'dur', 'said', 'com']
 
 def clean_text(text):
     '''
@@ -25,25 +58,33 @@ def clean_text(text):
     clean_text = re.sub(r'\'(\w)', r' \1', clean_text)
     #remove multiple spaces
     clean_text = re.sub(r'\s+', ' ', clean_text)
-    clean_text = re.sub(r'\bHie\b', 'the', clean_text)
     return clean_text
 
-def clean_downloads(path):
+def correct_text(text):
+    for correction in CORRECTIONS:
+        pattern = re.compile(r'\b%s\b' % correction[0])
+        text = pattern.sub(correction[1], text)
+    return text
+
+def clean_downloads(path, correct=True, stopwords=False):
     '''
     Clean all text files from a Trove harvest.
     Saves cleaned versions in a new directory.
     '''
     output_dir = os.path.join(path, 'cleaned')
+    report_dir = os.path.join(path, 'reports')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    dirs = [ dir for dir in os.listdir(path) if os.path.isdir(os.path.join(path, dir))]
+    if not os.path.exists(report_dir):
+        os.makedirs(report_dir)
+    dirs = [ dir for dir in os.listdir(path) if os.path.isdir(os.path.join(path, dir)) and dir != 'cleaned' and dir != 'reports']
     for dir in dirs:
         print 'Processing: %s' % dir
         old_dir = os.path.join(path, dir)
         new_dir = os.path.join(output_dir, dir)
         if not os.path.exists(new_dir):
             os.makedirs(new_dir)
-        report_path = os.path.join(new_dir, 'accuracy.txt')
+        report_path = os.path.join(report_dir, '%s-accuracy.txt' % dir)
         with open(report_path, 'w') as report:
             report.write('Generated: %s\n' % datetime.datetime.now().isoformat())
         entities = []
@@ -56,7 +97,7 @@ def clean_downloads(path):
                     entities = nltk.word_tokenize(entities_file.read())
             except IOError:
                 print 'No entities file'
-        files = [ os.path.join(old_dir, text_file) for text_file in os.listdir(old_dir) if text_file[-4:] == '.txt' ]
+        files = [ os.path.join(old_dir, text_file) for text_file in os.listdir(old_dir) if text_file[-4:] == '.txt' and text_file != 'entities.txt' ]
         clean = []
         dirty = []
         total_accuracy = 0
@@ -64,7 +105,10 @@ def clean_downloads(path):
             for text_file in files:
                 print 'Cleaning %s' % text_file
                 with open(text_file, 'r') as text:
-                    cleaned = clean_file(text.read(), entities)
+                    content = text.read()
+                    if stopwords:
+                        cleaned = remove_stopwords(content)
+                    cleaned = clean_file(content, entities, correct)
                 accuracy = (cleaned['recognised'] / cleaned['total']) * 100
                 print 'Accuracy: %s%%' % accuracy
                 total_accuracy += accuracy
@@ -112,11 +156,12 @@ def clean_files(path):
     print 'Dirty: %s' % len(dirty)
     print 'Clean: %s' % len(clean)
     
-def clean_file(text, entities):
+def clean_file(text, entities, correct):
     clean = []
     recognised = 0
     dirty = []
     ctext = clean_text(text)
+    if correct: ctext = correct_text(text)
     tokens = nltk.word_tokenize(ctext)
     unusual = unusual_words(tokens)
     for token in tokens:
@@ -230,3 +275,26 @@ def make_entity_list(path):
             entities_file.write('%s\n' % entity)
     print unique_entities
     return entities
+
+def combine_files(path, stopwords=True):
+    '''
+    Combine lots of little text files into one big text file.
+    '''
+    exclude = ['entities.txt', 'accuracy.txt']
+    exclude_dirs = ['cleaned', 'states']
+    dirs = [ os.path.join(path, dir) for dir in os.listdir(path) if os.path.isdir(os.path.join(path, dir)) and dir not in exclude_dirs ]
+    with open(os.path.join(path, 'all_texts.txt'), 'w') as all_texts:
+        for dir in dirs:
+            text_files = [os.path.join(dir, text_file) for text_file in os.listdir(dir) if text_file[-4:] == '.txt' and text_file not in exclude]
+            for text_file in text_files:
+                with open(text_file, 'r') as text:
+                    content = text.read()
+                    if stopwords:
+                        content = remove_stopwords(content)
+                    all_texts.write('%s\n' % content)
+                
+def remove_stopwords(content):
+    for stop in MY_STOPWORDS:
+        content = content.replace(stop, '')
+    return content
+    

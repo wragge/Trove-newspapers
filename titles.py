@@ -72,9 +72,7 @@ def show_metro():
             metro[title['id']] = title
         elif look_for_city(title['name'], cities):
             metro[title['id']] = title
-    print metro
-    for paper in metro:
-        print paper
+    for paper in metro.itervalues():
         print paper['name']
          
 def look_for_city(name, cities):
