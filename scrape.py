@@ -381,26 +381,26 @@ class TroveNewspapersClient:
         article['id'] = article_id
         article['url'] = url
         publication_fields = result.find('dd', 'sourcedate')
-        if '(' in publication_fields.i.string:
-            if ')' in publication_fields.i.string:
+        if '(' in publication_fields.em.string:
+            if ')' in publication_fields.em.string:
                 newspaper_title, newspaper_details = (re.search(r'(.*?) \((.*?)\)', 
                                                                publication_fields
-                                                               .i.string.strip())
+                                                               .em.string.strip())
                                                                .groups())
             # Sometimes long titles are truncated so the full details aren't there
             # Remove the fragment after the open bracket
             else:
                 newspaper_title = (re.search(r'(.*?) \(', 
                                             publication_fields
-                                            .i.string.strip())
+                                            .em.string.strip())
                                             .group(1))
                 newspaper_details = ''
         else:
-            newspaper_title = publication_fields.i.string.strip()
+            newspaper_title = publication_fields.em.string.strip()
             newspaper_details = ''
         article['newspaper_title'] = newspaper_title
         article['newspaper_details'] = newspaper_details
-        article['issue_date'] = publication_fields.b.string.strip()
+        article['issue_date'] = publication_fields.strong.string.strip()
         article['issue_year'], article['issue_month'], article['issue_day'] = extract_date(article['issue_date'])
         article['page'], article['type'] = (re.search(r'(\d+) (.*)', 
                                                       publication_fields.contents[3]
