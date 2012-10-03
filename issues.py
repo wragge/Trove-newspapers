@@ -2,6 +2,7 @@
 import json
 import datetime
 from BeautifulSoup import BeautifulSoup
+import os
 
 import utilities
 from utilities import get_url, parse_date
@@ -10,6 +11,7 @@ from titles import TITLES_URL
 TITLE_HOLDINGS_URL = 'http://trove.nla.gov.au/ndp/del/yearsAndMonthsForTitle/'
 MONTH_ISSUES_URL = 'http://trove.nla.gov.au/ndp/del/titlesOverDates/'
 ISSUE_URL = 'http://trove.nla.gov.au/ndp/del/issue/'
+ISSUE_DATA_DIR = '/Users/tim/Documents/trove/issue_data'
 
 def get_issue_url(date, title_id):
     '''
@@ -23,8 +25,15 @@ def get_issue_url(date, title_id):
         year, month, day = date.timetuple()[:3]
     else:
         year, month, day = (int(num) for num in date.split('-'))
-    url = '%s%s/%02d' % (MONTH_ISSUES_URL, year, month)
-    issues = json.load(get_url(url))
+    data_file = os.path.join(ISSUE_DATA_DIR, '%s-%s.js' % (year, month))
+    if os.path.exists(data_file):
+        with open(data_file, 'rb') as issue_data:
+            issues = json.load(issue_data)
+    else:
+        url = '%s%s/%02d' % (MONTH_ISSUES_URL, year, month)
+        issues = json.load(get_url(url))
+        with open(data_file, 'wb') as issue_data:
+            json.dump(issues, issue_data)
     issue_id = None
     issue_url = None
     for issue in issues:

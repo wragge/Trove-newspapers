@@ -137,6 +137,7 @@ class TroveNewspapersClient:
             try:
                 self.extract_results()
             except Exception:
+                #print self.response
                 raise
         
     def get_random_articles(self, year=None, 
@@ -385,7 +386,9 @@ class TroveNewspapersClient:
             if ')' in publication_fields.em.string:
                 newspaper_title, newspaper_details = (re.search(r'(.*?) \((.*?)\)', 
                                                                publication_fields
-                                                               .em.string.strip())
+                                                               .em.string.strip()
+                                                               .replace(u'\xa0', ' ')
+                                                               .replace(u'\u2013', '-'))
                                                                .groups())
             # Sometimes long titles are truncated so the full details aren't there
             # Remove the fragment after the open bracket
@@ -408,6 +411,7 @@ class TroveNewspapersClient:
         article['length'] = result.find('dd', 'snippet').span.string.strip()
         article['summary'] = ''.join([e.string.strip() for e in 
                                       result.find('dd', 'snippet').contents[:-1]])
+        
         return article
         
     def extract_article_details(self):
@@ -422,7 +426,7 @@ class TroveNewspapersClient:
                                     .encode('utf-8'))
         if '(' in page.find('div','title').h1.string:
             newspaper, details = (re.search(r'(.*?) \((.*?)\)', page.find('div','title')
-                                .h1.string.strip()).groups())
+                                .h1.string.strip().replace(u'\xa0', ' ').replace(u'\u2013', '-')).groups())
         else:
             newspaper = page.find('div','title').h1.string.strip()
             details = ''
@@ -496,22 +500,32 @@ class TroveNewspapersClient:
         success = False
         try_num = 1
         while success is False and try_num <= self.tries:
+            response = None
+            content = None
+            print 'Try number: %s ' % try_num
             if try_num > 1:
                 time.sleep(10)
             try:
                 response = self.get_url()
+            except ServerError:
+                if try_num < self.tries:
+                    try_num += 1
+                    continue
+                else:
+                    raise
             except Exception:
                 raise
+            content= response.read()
+            # Make sure a complete page is returned
+            if content and re.search(r'<\/html>', content):
+                self.response = content
+                success = True
             else:
-                if response is not None:
-                    success = True
+                if try_num == self.tries:
+                    raise ServerError('Nothing was returned')
                 else:
-                    if try_num == self.tries:
-                        raise ServerError('Nothing was returned')
-                    else:
-                        try_num += 1
-        self.response = response.read()
-
+                    try_num += 1
+        
     def get_url(self):
         '''
         Retrieve page.
@@ -528,8 +542,7 @@ class TroveNewspapersClient:
                 raise
         except URLError, error:
             raise
-        else:
-            return response
+        return response
 
 def extract_date(date_string):
     '''

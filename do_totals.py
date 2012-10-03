@@ -117,7 +117,12 @@ ARTICLE_TYPES = {'Advertising|category:Advertising': 'advertising',
                  'Article|category:Article': 'news',
                  'Detailed+lists,+results,+guides|category:Detailed+lists,+results,+guides': 'lists',
                  'Family+Notices|category:Family+Notices': 'family',
-                 'Literature|category:Literature': 'literature'}
+                 'Literature|category:Literature': 'literature',
+                 'Advertising': 'advertising',
+                 'Article': 'news',
+                 'Detailed+lists,+results,+guides': 'lists',
+                 'Family+Notices': 'family',
+                 'Literature': 'literature'}
                  
 def main(argv):
     '''

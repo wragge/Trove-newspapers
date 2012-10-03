@@ -207,7 +207,7 @@ def create_corpus(path):
     '''
     Create a corpus from a directory full of text files.
     '''
-    articles = PlaintextCorpusReader(path, '.*\.txt')
+    articles = nltk.corpus.PlaintextCorpusReader(path, '.*\.txt')
     return articles
 
 class ServerError(Exception):

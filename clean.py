@@ -4,11 +4,13 @@ import os
 import re
 import nltk
 from nltk.corpus import wordnet as wn
+from nltk.corpus.reader import WordListCorpusReader
 import string
 
 PUNCTUATION = [',','.',';',':','(',')','?','!','"','\'']
 CORRECTIONS = [
                 ('Hie', 'the'),
+                ('hie', 'the'),
                 ('tho', 'the'),
                 ('tbo', 'the'),
                 ('foi', 'for'),
@@ -40,6 +42,7 @@ CORRECTIONS = [
 # Words that Voyant doesn't filter out.
 # TO-DO: Need to work out why words like during and coming are being split
 MY_STOPWORDS = ['Mr', 'Mrs', 'Miss', 'ing', 'ment', 'ed', 'ii', 'II', 'dur', 'said', 'com']
+ENDINGS = ['ing', 'ment', 'ed', 'tion']
 
 def clean_text(text):
     '''
@@ -58,6 +61,9 @@ def clean_text(text):
     clean_text = re.sub(r'\'(\w)', r' \1', clean_text)
     #remove multiple spaces
     clean_text = re.sub(r'\s+', ' ', clean_text)
+    # Join up some rogue endings
+    for end in ENDINGS:
+        clean_text = re.sub(r'(\w)\s+' + end, r'\1' + end, clean_text)
     return clean_text
 
 def correct_text(text):
@@ -160,8 +166,9 @@ def clean_file(text, entities, correct):
     clean = []
     recognised = 0
     dirty = []
-    ctext = clean_text(text)
-    if correct: ctext = correct_text(text)
+    ctext = remove_html(text)
+    ctext = clean_text(ctext)
+    if correct: ctext = correct_text(ctext)
     tokens = nltk.word_tokenize(ctext)
     unusual = unusual_words(tokens)
     for token in tokens:
@@ -172,33 +179,56 @@ def clean_file(text, entities, correct):
         else:
             if len(ltoken) > 1 or ltoken in ['a', 'i']:
                 if ltoken in unusual:
-                    stem = wn.morphy(ltoken)
-                    if stem:
-                        clean.append(token)
-                        recognised += 1
-                    else:
-                        if ltoken in entities:
-                           clean.append(token)
-                           recognised += 1
+                    if len(ltoken) > 3:
+                        stem = wn.morphy(ltoken)
+                        if stem:
+                            clean.append(token)
+                            recognised += 1
                         else:
-                            dirty.append(token)
-                            clean.append('[?]')
+                            if ltoken in entities:
+                               clean.append(token)
+                               recognised += 1
+                            else:
+                                dirty.append(token)
+                                clean.append('[[%s]]' % token)
+                    else:
+                        dirty.append(token)
+                        clean.append('[[%s]]' % token)
                 else:
                     clean.append(token)
                     recognised += 1
             else:
                 dirty.append(token)
     return {'clean': clean, 'dirty': dirty, 'recognised': recognised, 'total': len(tokens)}
+    
+def remove_html(text):
+    text = text.replace('<p>','').replace('</p>','').replace('<span','').replace('</span>','')
+    return text
         
 def unusual_words(text):
     '''
     Returns a list of words in the supplied text than don't occur in NLTK's wordlist.
     '''
     #print text
-    text_vocab = set(w.lower() for w in text)
-    english_vocab = set(w.lower() for w in nltk.corpus.words.words())
-    unusual = text_vocab.difference(english_vocab)
+    text_vocab = set(get_lemma(w.lower()) for w in text)
+    known_words = []
+    known_words.extend(word.lower() for word in nltk.corpus.words.words())
+    known_words.extend(word.lower() for word in nltk.corpus.names.words())
+    known_words.extend(word.lower() for word in open_places_wordlist().words())
+    known_words = set(known_words)
+    unusual = text_vocab.difference(known_words)
     return sorted(unusual)
+    
+def get_lemma(word):
+    if wn.morphy(word):
+        word = wn.morphy(word)
+    return word
+    
+def open_places_wordlist():
+    path = '/Users/tim/mycode/time/wordlists/'
+    wordlist = 'ga_gazetteer_wordlist.txt'
+    reader = WordListCorpusReader(path, [wordlist])
+    return reader
     
 def extract_entity_names(t):
     '''
@@ -276,7 +306,7 @@ def make_entity_list(path):
     print unique_entities
     return entities
 
-def combine_files(path, stopwords=True):
+def combine_files(path, stopwords=False):
     '''
     Combine lots of little text files into one big text file.
     '''

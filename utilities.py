@@ -87,6 +87,9 @@ def get_url(url, try_num=0):
             if error.code >= 500:
                 time.sleep(10)
                 get_url(url, try_num =+ 1)
+            elif error.code == 404:
+                print 'Not there'
+                raise
             else:
                 print 'The server couldn\'t fulfill the request.'
                 print 'Error code: ', error.code
@@ -183,7 +186,51 @@ def clean_filename(filename):
     filename = filename.replace(' ', '-')
     filename = ''.join(c for c in filename if c in valid_chars)
     return filename
-    
+
+def get_snippet(pattern, path, size=100):
+    '''
+    Extract section of text surrounding the first and last matched instance of pattern.
+    Size is the number of words before and after the pattern.
+    '''
+    output_dir = os.path.join(path, 'snippets')
+    c_pattern = re.compile(pattern, flags=re.IGNORECASE)
+    print c_pattern
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    dirs = [ dir for dir in os.listdir(path) if os.path.isdir(os.path.join(path, dir)) and dir != 'snippets' and dir != 'cleaned' and dir != 'reports']
+    for dir in dirs:
+        print 'Processing: %s' % dir
+        old_dir = os.path.join(path, dir)
+        new_dir = os.path.join(output_dir, dir)
+        if not os.path.exists(new_dir):
+            os.makedirs(new_dir)
+            files = [ os.path.join(old_dir, text_file) for text_file in os.listdir(old_dir) if text_file[-4:] == '.txt' ]
+            for text_file in files:
+                with open(text_file, 'r') as text:
+                    content = text.read()
+                print 'Snipping %s' % text_file
+                matches = [(match.start(), match.end()) for match in re.finditer(c_pattern, content)]
+                if matches:
+                    print matches
+                    start = matches[0][1]
+                    if len(matches) == 1:
+                        end = matches[-1][1]
+                    elif len(matches) >= 2:
+                        end = matches[-1][0]
+                    
+                    start_text = ' '.join(content[:start].split()[-(size+1):])
+                    end_text = ' '.join(content[end:].split()[:size])
+                    if start == end:
+                        snippet = start_text + ' ' + end_text
+                    else:
+                        snippet = start_text + content[start:end] + end_text
+                else:
+                    print 'NOT FOUND'
+                    snippet = content #Trove's fuzzy matches might not be found by regex
+                with open(os.path.join(new_dir, os.path.basename(text_file)), 'w') as s_file:    
+                    s_file.write(snippet)
+                        
+   
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
